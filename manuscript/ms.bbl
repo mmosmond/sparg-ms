@@ -1,0 +1,550 @@
+\begin{thebibliography}{}
+
+\bibitem[\protect\astroncite{Adrion et~al.}{2020}]{10.7554/eLife.54967}
+Adrion, J.~R., Cole, C.~B., Dukler, N., Galloway, J.~G., Gladstein, A.~L.,
+  Gower, G., Kyriazis, C.~C., Ragsdale, A.~P., Tsambos, G., Baumdicker, F.,
+  Carlson, J., Cartwright, R.~A., Durvasula, A., Gronau, I., Kim, B.~Y.,
+  McKenzie, P., Messer, P.~W., Noskova, E., Ortega-Del~Vecchyo, D., Racimo, F.,
+  Struck, T.~J., Gravel, S., Gutenkunst, R.~N., Lohmueller, K.~E., Ralph,
+  P.~L., Schrider, D.~R., Siepel, A., Kelleher, J., and Kern, A.~D. (2020).
+\newblock A community-maintained standard library of population genetic models.
+\newblock {\em eLife}, 9:e54967.
+
+\bibitem[\protect\astroncite{Alonso-Blanco et~al.}{2016}]{alonso2016}
+Alonso-Blanco, C., Andrade, J., Becker, C., Bemm, F., Bergelson, J., Borgwardt,
+  K.~M., Cao, J., Chae, E., Dezwaan, T.~M., Ding, W., et~al. (2016).
+\newblock 1,135 genomes reveal the global pattern of polymorphism in
+  \textit{Arabidopsis thaliana}.
+\newblock {\em Cell}, 166(2):481--491.
+
+\bibitem[\protect\astroncite{Avise}{2009}]{avise2009phylogeography}
+Avise, J.~C. (2009).
+\newblock Phylogeography: retrospect and prospect.
+\newblock {\em Journal of Biogeography}, 36(1):3--15.
+
+\bibitem[\protect\astroncite{Barton and Wilson}{1995}]{barton1995genealogies}
+Barton, N.~H. and Wilson, I. (1995).
+\newblock Genealogies and geography.
+\newblock {\em Philosophical Transactions of the Royal Society of London B},
+  349(1327):49--59.
+
+\bibitem[\protect\astroncite{Battey et~al.}{2020}]{battey2020predicting}
+Battey, C.~J., Ralph, P.~L., and Kern, A.~D. (2020).
+\newblock Predicting geographic location from genetic variation with deep
+  neural networks.
+\newblock {\em eLife}, 9:e54507.
+
+\bibitem[\protect\astroncite{Bedford et~al.}{2010}]{bedford2010global}
+Bedford, T., Cobey, S., Beerli, P., and Pascual, M. (2010).
+\newblock Global migration dynamics underlie evolution and persistence of human
+  influenza {A (H3N2)}.
+\newblock {\em PLoS Pathogens}, 6(5):e1000918.
+
+\bibitem[\protect\astroncite{Biek et~al.}{2007}]{biek2007high}
+Biek, R., Henderson, J.~C., Waller, L.~A., Rupprecht, C.~E., and Real, L.~A.
+  (2007).
+\newblock A high-resolution genetic signature of demographic and spatial
+  expansion in epizootic rabies virus.
+\newblock {\em Proceedings of the National Academy of Sciences},
+  104(19):7993--7998.
+
+\bibitem[\protect\astroncite{Bomblies et~al.}{2010}]{bomblies2010local}
+Bomblies, K., Yant, L., Laitinen, R.~A., Kim, S.-T., Hollister, J.~D.,
+  Warthmann, N., Fitz, J., and Weigel, D. (2010).
+\newblock Local-scale patterns of genetic variability, outcrossing, and spatial
+  structure in natural stands of \textit{Arabidopsis thaliana}.
+\newblock {\em PLoS Genetics}, 6(3):e1000890.
+
+\bibitem[\protect\astroncite{Bradburd and Ralph}{2019}]{bradburd2019spatial}
+Bradburd, G.~S. and Ralph, P.~L. (2019).
+\newblock Spatial population genetics: it's about time.
+\newblock {\em Annual Review of Ecology, Evolution, and Systematics},
+  50:427--449.
+
+\bibitem[\protect\astroncite{Cavalli-Sforza et~al.}{1964}]{cavalli1964analysis}
+Cavalli-Sforza, L.~L., Barrai, I., and Edwards, A.~W. (1964).
+\newblock Analysis of human evolution under random genetic drift.
+\newblock In {\em Cold Spring Harbor symposia on quantitative biology},
+  volume~29, pages 9--20. Cold Spring Harbor Laboratory Press.
+
+\bibitem[\protect\astroncite{Cavalli-Sforza and
+  Edwards}{1967}]{cavalli1967phylogenetic}
+Cavalli-Sforza, L.~L. and Edwards, A.~W. (1967).
+\newblock Phylogenetic analysis. models and estimation procedures.
+\newblock {\em American Journal of Human Genetics}, 19:233--257.
+
+\bibitem[\protect\astroncite{Chang et~al.}{2015}]{chang2015second}
+Chang, C.~C., Chow, C.~C., Tellier, L.~C., Vattikuti, S., Purcell, S.~M., and
+  Lee, J.~J. (2015).
+\newblock Second-generation {PLINK}: rising to the challenge of larger and
+  richer datasets.
+\newblock {\em Gigascience}, 4(7):s13742--015--0047--8.
+
+\bibitem[\protect\astroncite{Coop}{2013}]{Coop_many_genetic}
+Coop, G. (2013).
+\newblock {How many genetic ancestors do I have?}
+\newblock
+  \url{https://gcbias.org/2013/11/11/how-does-your-number-of-genetic-ancestors-grow-back-over-time/}.
+\newblock [Online; accessed 1-July-2021].
+
+\bibitem[\protect\astroncite{Coop}{2017}]{Coop_where_genetic}
+Coop, G. (2017).
+\newblock Where did your genetic ancestors come from?
+\newblock \url{https://gcbias.org/2017/12/19/1628/}.
+\newblock [Online; accessed 1-July-2021].
+
+\bibitem[\protect\astroncite{Dellicour
+  et~al.}{2021a}]{dellicour2021phylodynamic}
+Dellicour, S., Durkin, K., Hong, S.~L., Vanmechelen, B., Mart{\'\i}-Carreras,
+  J., Gill, M.~S., Meex, C., Bontems, S., Andr{\'e}, E., Gilbert, M., et~al.
+  (2021a).
+\newblock A phylodynamic workflow to rapidly gain insights into the dispersal
+  history and dynamics of {SARS-CoV-2} lineages.
+\newblock {\em Molecular Biology and Evolution}, 38(4):1608--1613.
+
+\bibitem[\protect\astroncite{Dellicour et~al.}{2021b}]{dellicour2021dispersal}
+Dellicour, S., Hong, S.~L., Vrancken, B., Chaillon, A., Gill, M.~S., Maurano,
+  M.~T., Ramaswami, S., Zappile, P., Marier, C., Harkins, G.~W., et~al.
+  (2021b).
+\newblock Dispersal dynamics of {SARS-CoV-2} lineages during the first epidemic
+  wave in {New York City}.
+\newblock {\em PLoS Pathogens}, 17(5):e1009571.
+
+\bibitem[\protect\astroncite{Donnelly}{1983}]{donnelly1983probability}
+Donnelly, K.~P. (1983).
+\newblock The probability that related individuals share some section of genome
+  identical by descent.
+\newblock {\em Theoretical Population Biology}, 23(1):34--63.
+
+\bibitem[\protect\astroncite{Durvasula et~al.}{2017}]{durvasula2017african}
+Durvasula, A., Fulgione, A., Gutaker, R.~M., Alacakaptan, S.~I., Flood, P.~J.,
+  Neto, C., Tsuchimatsu, T., Burbano, H.~A., Pic{\'o}, F.~X., Alonso-Blanco,
+  C., et~al. (2017).
+\newblock African genomes illuminate the early history and transition to
+  selfing in \textit{Arabidopsis thaliana}.
+\newblock {\em Proceedings of the National Academy of Sciences},
+  114(20):5213--5218.
+
+\bibitem[\protect\astroncite{Edwards}{1970}]{edwards1970estimation}
+Edwards, A.~W. (1970).
+\newblock Estimation of the branch points of a branching diffusion process.
+\newblock {\em Journal of the Royal Statistical Society B}, 32(2):155--164.
+
+\bibitem[\protect\astroncite{Exposito-Alonso et~al.}{2018}]{exposito2018rate}
+Exposito-Alonso, M., Becker, C., Schuenemann, V.~J., Reiter, E., Setzer, C.,
+  Slovak, R., Brachi, B., Hagmann, J., Grimm, D.~G., Chen, J., et~al. (2018).
+\newblock The rate and potential relevance of new mutations in a colonizing
+  plant lineage.
+\newblock {\em PLoS Genetics}, 14(2):e1007155.
+
+\bibitem[\protect\astroncite{Felsenstein}{1973}]{felsenstein1973maximum}
+Felsenstein, J. (1973).
+\newblock Maximum-likelihood estimation of evolutionary trees from continuous
+  characters.
+\newblock {\em American Journal of Human Genetics}, 25(5):471.
+
+\bibitem[\protect\astroncite{Felsenstein}{1985}]{felsenstein1985phylogenies}
+Felsenstein, J. (1985).
+\newblock Phylogenies and the comparative method.
+\newblock {\em The American Naturalist}, 125(1):1--15.
+
+\bibitem[\protect\astroncite{Fulgione and Hancock}{2018}]{fulgione2018archaic}
+Fulgione, A. and Hancock, A.~M. (2018).
+\newblock Archaic lineages broaden our view on the history of
+  \textit{Arabidopsis thaliana}.
+\newblock {\em New Phytologist}, 219(4):1194--1198.
+
+\bibitem[\protect\astroncite{Fulgione et~al.}{2018}]{fulgione2018madeiran}
+Fulgione, A., Koornneef, M., Roux, F., Hermisson, J., and Hancock, A.~M.
+  (2018).
+\newblock Madeiran \textit{Arabidopsis thaliana} reveals ancient long-range
+  colonization and clarifies demography in {Eurasia}.
+\newblock {\em Molecular Biology and Evolution}, 35(3):564--574.
+
+\bibitem[\protect\astroncite{Grafen}{1989}]{grafen1989phylogenetic}
+Grafen, A. (1989).
+\newblock The phylogenetic regression.
+\newblock {\em Philosophical Transactions of the Royal Society of London B},
+  326(1233):119--157.
+
+\bibitem[\protect\astroncite{Griffiths and
+  Tavare}{1994}]{griffiths1994sampling}
+Griffiths, R.~C. and Tavare, S. (1994).
+\newblock Sampling theory for neutral alleles in a varying environment.
+\newblock {\em Philosophical Transactions of the Royal Society of London B},
+  344(1310):403--410.
+
+\bibitem[\protect\astroncite{Griffiths and
+  Tavare}{1997}]{griffiths1997computational}
+Griffiths, R.~C. and Tavare, S. (1997).
+\newblock Computational methods for the coalescent.
+\newblock {\em IMA Volumes in Mathematics and its Applications}, 87:165--182.
+
+\bibitem[\protect\astroncite{Haller et~al.}{2019}]{haller2019tree}
+Haller, B.~C., Galloway, J., Kelleher, J., Messer, P.~W., and Ralph, P.~L.
+  (2019).
+\newblock Tree-sequence recording in {SLiM} opens new horizons for forward-time
+  simulation of whole genomes.
+\newblock {\em Molecular Ecology Resources}, 19(2):552--566.
+
+\bibitem[\protect\astroncite{Haller and Messer}{2019}]{haller2019slim}
+Haller, B.~C. and Messer, P.~W. (2019).
+\newblock {SLiM 3: Forward genetic simulations beyond the Wright--Fisher
+  model}.
+\newblock {\em Molecular Biology and Evolution}, 36(3):632--637.
+
+\bibitem[\protect\astroncite{Harmon}{2019}]{harmon2019phylogenetic}
+Harmon, L.~J. (2019).
+\newblock {\em Phylogenetic comparative methods}.
+\newblock https://lukejharmon.github.io/pcm/.
+
+\bibitem[\protect\astroncite{Harmon et~al.}{2010}]{harmon2010early}
+Harmon, L.~J., Losos, J.~B., Jonathan~Davies, T., Gillespie, R.~G., Gittleman,
+  J.~L., Bryan~Jennings, W., Kozak, K.~H., McPeek, M.~A., Moreno-Roark, F.,
+  Near, T.~J., et~al. (2010).
+\newblock Early bursts of body size and shape evolution are rare in comparative
+  data.
+\newblock {\em Evolution}, 64(8):2385--2396.
+
+\bibitem[\protect\astroncite{Hewitt}{2000}]{hewitt2000genetic}
+Hewitt, G. (2000).
+\newblock The genetic legacy of the quaternary ice ages.
+\newblock {\em Nature}, 405(6789):907--913.
+
+\bibitem[\protect\astroncite{Hsu et~al.}{2019}]{hsu2019postglacial}
+Hsu, C.-W., Lo, C.-Y., and Lee, C.-R. (2019).
+\newblock On the postglacial spread of human commensal \textit{Arabidopsis
+  thaliana}: journey to the east.
+\newblock {\em New Phytologist}, 222(3):1447--1457.
+
+\bibitem[\protect\astroncite{Hudson}{2001}]{hudson2001two}
+Hudson, R.~R. (2001).
+\newblock Two-locus sampling distributions and their application.
+\newblock {\em Genetics}, 159(4):1805--1817.
+
+\bibitem[\protect\astroncite{Hudson}{2002}]{hudson2002generating}
+Hudson, R.~R. (2002).
+\newblock Generating samples under a {Wright--Fisher} neutral model of genetic
+  variation.
+\newblock {\em Bioinformatics}, 18(2):337--338.
+
+\bibitem[\protect\astroncite{Keightley and
+  Jackson}{2018}]{keightley2018inferring}
+Keightley, P.~D. and Jackson, B.~C. (2018).
+\newblock Inferring the probability of the derived vs. the ancestral allelic
+  state at a polymorphic site.
+\newblock {\em Genetics}, 209(3):897--906.
+
+\bibitem[\protect\astroncite{Kelleher et~al.}{2016a}]{KELLEHER20161}
+Kelleher, J., Etheridge, A., Véber, A., and Barton, N. (2016a).
+\newblock Spread of pedigree versus genetic ancestry in spatially distributed
+  populations.
+\newblock {\em Theoretical Population Biology}, 108:1--12.
+
+\bibitem[\protect\astroncite{Kelleher et~al.}{2016b}]{kelleher2016efficient}
+Kelleher, J., Etheridge, A.~M., and McVean, G. (2016b).
+\newblock Efficient coalescent simulation and genealogical analysis for large
+  sample sizes.
+\newblock {\em PLoS Computational Biology}, 12(5):e1004842.
+
+\bibitem[\protect\astroncite{Kelleher et~al.}{2018}]{kelleher2018efficient}
+Kelleher, J., Thornton, K.~R., Ashander, J., and Ralph, P.~L. (2018).
+\newblock Efficient pedigree recording for fast population genetics simulation.
+\newblock {\em PLoS Computational Biology}, 14(11):e1006581.
+
+\bibitem[\protect\astroncite{Kelleher et~al.}{2019}]{kelleher2019inferring}
+Kelleher, J., Wong, Y., Wohns, A.~W., Fadil, C., Albers, P.~K., and McVean, G.
+  (2019).
+\newblock Inferring whole-genome histories in large population datasets.
+\newblock {\em Nature Genetics}, 51(9):1330--1338.
+
+\bibitem[\protect\astroncite{Kim et~al.}{2007}]{kim2007recombination}
+Kim, S., Plagnol, V., Hu, T.~T., Toomajian, C., Clark, R.~M., Ossowski, S.,
+  Ecker, J.~R., Weigel, D., and Nordborg, M. (2007).
+\newblock Recombination and linkage disequilibrium in \textit{Arabidopsis
+  thaliana}.
+\newblock {\em Nature Genetics}, 39(9):1151--1155.
+
+\bibitem[\protect\astroncite{Kimura}{1980}]{kimura1980simple}
+Kimura, M. (1980).
+\newblock A simple method for estimating evolutionary rates of base
+  substitutions through comparative studies of nucleotide sequences.
+\newblock {\em Journal of Molecular Evolution}, 16(2):111--120.
+
+\bibitem[\protect\astroncite{Knowles}{2009}]{knowles2009statistical}
+Knowles, L.~L. (2009).
+\newblock Statistical phylogeography.
+\newblock {\em Annual Review of Ecology, Evolution, and Systematics},
+  40:593--612.
+
+\bibitem[\protect\astroncite{Lachance}{2009}]{lachance2009inbreeding}
+Lachance, J. (2009).
+\newblock Inbreeding, pedigree size, and the most recent common ancestor of
+  humanity.
+\newblock {\em Journal of Theoretical Biology}, 261(2):238--247.
+
+\bibitem[\protect\astroncite{Landis et~al.}{2013}]{landis2013phylogenetic}
+Landis, M.~J., Schraiber, J.~G., and Liang, M. (2013).
+\newblock Phylogenetic analysis using {L\'e}vy processes: finding jumps in the
+  evolution of continuous traits.
+\newblock {\em Systematic Biology}, 62(2):193--204.
+
+\bibitem[\protect\astroncite{Larribe and
+  Fearnhead}{2011}]{larribe2011composite}
+Larribe, F. and Fearnhead, P. (2011).
+\newblock On composite likelihoods in statistical genetics.
+\newblock {\em Statistica Sinica}, 21(1):43--69.
+
+\bibitem[\protect\astroncite{Lee et~al.}{2017}]{lee2017post}
+Lee, C.-R., Svardal, H., Farlow, A., Exposito-Alonso, M., Ding, W., Novikova,
+  P., Alonso-Blanco, C., Weigel, D., and Nordborg, M. (2017).
+\newblock On the post-glacial spread of human commensal \textit{Arabidopsis
+  thaliana}.
+\newblock {\em Nature Communications}, 8(1):1--12.
+
+\bibitem[\protect\astroncite{Lemey et~al.}{2020}]{lemey2020accommodating}
+Lemey, P., Hong, S.~L., Hill, V., Baele, G., Poletto, C., Colizza, V.,
+  O’Toole, {\'A}., McCrone, J.~T., Andersen, K.~G., Worobey, M., et~al.
+  (2020).
+\newblock Accommodating individual travel history and unsampled diversity in
+  {Bayesian} phylogeographic inference of {SARS-CoV-2}.
+\newblock {\em Nature Communications}, 11(1):1--14.
+
+\bibitem[\protect\astroncite{Lemey et~al.}{2009}]{lemey2009bayesian}
+Lemey, P., Rambaut, A., Drummond, A.~J., and Suchard, M.~A. (2009).
+\newblock Bayesian phylogeography finds its roots.
+\newblock {\em PLoS Computational Biology}, 5(9):e1000520.
+
+\bibitem[\protect\astroncite{Lemey et~al.}{2010}]{lemey2010phylogeography}
+Lemey, P., Rambaut, A., Welch, J.~J., and Suchard, M.~A. (2010).
+\newblock Phylogeography takes a relaxed random walk in continuous space and
+  time.
+\newblock {\em Molecular Biology and Evolution}, 27(8):1877--1885.
+
+\bibitem[\protect\astroncite{Mal{\'e}cot}{1948}]{malecot1948mathematics}
+Mal{\'e}cot, G. (1948).
+\newblock {\em Les math{\'e}matiques de l'h{\'e}r{\'e}dit{\'e}}.
+\newblock Masson.
+
+\bibitem[\protect\astroncite{Martin et~al.}{2021}]{martin2021insights}
+Martin, M.~A., VanInsberghe, D., and Koelle, K. (2021).
+\newblock {Insights from SARS-CoV-2 sequences}.
+\newblock {\em Science}, 371(6528):466--467.
+
+\bibitem[\protect\astroncite{Meligkotsidou and
+  Fearnhead}{2007}]{meligkotsidou2007postprocessing}
+Meligkotsidou, L. and Fearnhead, P. (2007).
+\newblock Postprocessing of genealogical trees.
+\newblock {\em Genetics}, 177(1):347--358.
+
+\bibitem[\protect\astroncite{Nordborg}{2000}]{nordborg2000linkage}
+Nordborg, M. (2000).
+\newblock Linkage disequilibrium, gene trees and selfing: an ancestral
+  recombination graph with partial self-fertilization.
+\newblock {\em Genetics}, 154(2):923--929.
+
+\bibitem[\protect\astroncite{Novembre and
+  Slatkin}{2009}]{novembre2009likelihood}
+Novembre, J. and Slatkin, M. (2009).
+\newblock Likelihood-based inference in isolation-by-distance models using the
+  spatial distribution of low-frequency alleles.
+\newblock {\em Evolution}, 63(11):2914--2925.
+
+\bibitem[\protect\astroncite{O'Meara et~al.}{2006}]{o2006testing}
+O'Meara, B.~C., An{\'e}, C., Sanderson, M.~J., and Wainwright, P.~C. (2006).
+\newblock Testing for different rates of continuous trait evolution using
+  likelihood.
+\newblock {\em Evolution}, 60(5):922--933.
+
+\bibitem[\protect\astroncite{Platt et~al.}{2010}]{platt2010scale}
+Platt, A., Horton, M., Huang, Y.~S., Li, Y., Anastasio, A.~E., Mulyati, N.~W.,
+  {\AA}gren, J., Bossdorf, O., Byers, D., Donohue, K., et~al. (2010).
+\newblock The scale of population structure in \textit{Arabidopsis thaliana}.
+\newblock {\em PLoS Genetics}, 6(2):e1000843.
+
+\bibitem[\protect\astroncite{Ralph and Coop}{2013}]{ralph2013geography}
+Ralph, P. and Coop, G. (2013).
+\newblock The geography of recent genetic ancestry across europe.
+\newblock {\em PLoS Biology}, 11(5):e1001555.
+
+\bibitem[\protect\astroncite{Ralph et~al.}{2020}]{ralph2020efficiently}
+Ralph, P., Thornton, K., and Kelleher, J. (2020).
+\newblock Efficiently summarizing relationships in large samples: a general
+  duality between statistics of genealogies and genomes.
+\newblock {\em Genetics}, 215(3):779--797.
+
+\bibitem[\protect\astroncite{Rannala and Yang}{1996}]{rannala1996probability}
+Rannala, B. and Yang, Z. (1996).
+\newblock Probability distribution of molecular evolutionary trees: a new
+  method of phylogenetic inference.
+\newblock {\em Journal of Molecular Evolution}, 43(3):304--311.
+
+\bibitem[\protect\astroncite{Rasmussen et~al.}{2014}]{rasmussen2014genome}
+Rasmussen, M.~D., Hubisz, M.~J., Gronau, I., and Siepel, A. (2014).
+\newblock Genome-wide inference of ancestral recombination graphs.
+\newblock {\em PLoS Genetics}, 10(5):e1004342.
+
+\bibitem[\protect\astroncite{Reich}{2018}]{reich2018we}
+Reich, D. (2018).
+\newblock {\em Who we are and how we got here: ancient DNA and the new science
+  of the human past}.
+\newblock Oxford University Press.
+
+\bibitem[\protect\astroncite{Ringbauer et~al.}{2017}]{ringbauer2017inferring}
+Ringbauer, H., Coop, G., and Barton, N.~H. (2017).
+\newblock Inferring recent demography from isolation by distance of long shared
+  sequence blocks.
+\newblock {\em Genetics}, 205(3):1335--1351.
+
+\bibitem[\protect\astroncite{Rousset}{1997}]{rousset1997genetic}
+Rousset, F. (1997).
+\newblock Genetic differentiation and estimation of gene flow from
+  {F}-statistics under isolation by distance.
+\newblock {\em Genetics}, 145(4):1219--1228.
+
+\bibitem[\protect\astroncite{Salom{\'e} et~al.}{2012}]{salome2012recombination}
+Salom{\'e}, P., Bomblies, K., Fitz, J., Laitinen, R., Warthmann, N., Yant, L.,
+  and Weigel, D. (2012).
+\newblock The recombination landscape in \textit{Arabidopsis thaliana} {F2}
+  populations.
+\newblock {\em Heredity}, 108(4):447--455.
+
+\bibitem[\protect\astroncite{Schluter et~al.}{1997}]{schluter1997likelihood}
+Schluter, D., Price, T., Mooers, A.~{\O}., and Ludwig, D. (1997).
+\newblock Likelihood of ancestor states in adaptive radiation.
+\newblock {\em Evolution}, 51(6):1699--1711.
+
+\bibitem[\protect\astroncite{Shirsekar et~al.}{2021}]{shirsekar2021fine}
+Shirsekar, G., Devos, J., Latorre, S.~M., Blaha, A., Dias, M.~Q., Hernando,
+  A.~G., Lundberg, D.~S., Burbano, H.~A., Fenster, C.~B., and Weigel, D.
+  (2021).
+\newblock Fine-scale population structure of north american \textit{Arabidopsis
+  thaliana} reveals multiple sources of introduction from across {E}urasia.
+\newblock {\em bioRxiv}, doi:10.1101/2021.01.22.427575.
+
+\bibitem[\protect\astroncite{Slatkin and Racimo}{2016}]{slatkin2016ancient}
+Slatkin, M. and Racimo, F. (2016).
+\newblock Ancient {DNA} and human history.
+\newblock {\em Proceedings of the National Academy of Sciences},
+  113(23):6380--6387.
+
+\bibitem[\protect\astroncite{Speidel et~al.}{2021}]{speidel2021inferring}
+Speidel, L., Cassidy, L., Davies, R.~W., Hellenthal, G., Skoglund, P., and
+  Myers, S. (2021).
+\newblock Inferring population histories for ancient genomes using genome-wide
+  genealogies.
+\newblock {\em bioRxiv}, doi:10.1101/2021.02.17.431573.
+
+\bibitem[\protect\astroncite{Speidel et~al.}{2019}]{speidel2019method}
+Speidel, L., Forest, M., Shi, S., and Myers, S.~R. (2019).
+\newblock A method for genome-wide genealogy estimation for thousands of
+  samples.
+\newblock {\em Nature Genetics}, 51(9):1321--1329.
+
+\bibitem[\protect\astroncite{Stephens and
+  Donnelly}{2000}]{stephens2000inference}
+Stephens, M. and Donnelly, P. (2000).
+\newblock Inference in molecular population genetics.
+\newblock {\em Journal of the Royal Statistical Society B}, 62(4):605--635.
+
+\bibitem[\protect\astroncite{Stern et~al.}{2021}]{stern2020disentangling}
+Stern, A.~J., Speidel, L., Zaitlen, N.~A., and Nielsen, R. (2021).
+\newblock Disentangling selection on genetically correlated polygenic traits
+  via whole-genome genealogies.
+\newblock {\em The American Journal of Human Genetics}, 108(2):219--239.
+
+\bibitem[\protect\astroncite{Stern et~al.}{2019}]{stern2019approximate}
+Stern, A.~J., Wilton, P.~R., and Nielsen, R. (2019).
+\newblock An approximate full-likelihood method for inferring selection and
+  allele frequency trajectories from {DNA} sequence data.
+\newblock {\em PLoS Genetics}, 15(9):e1008384.
+
+\bibitem[\protect\astroncite{Sukumaran and
+  Holder}{2010}]{sukumaran2010dendropy}
+Sukumaran, J. and Holder, M.~T. (2010).
+\newblock {DendroPy: a Python library for phylogenetic computing}.
+\newblock {\em Bioinformatics}, 26(12):1569--1571.
+
+\bibitem[\protect\astroncite{Varin et~al.}{2011}]{varin2011overview}
+Varin, C., Reid, N., and Firth, D. (2011).
+\newblock An overview of composite likelihood methods.
+\newblock {\em Statistica Sinica}, 21(1):5--42.
+
+\bibitem[\protect\astroncite{Virtanen et~al.}{2020}]{2020SciPy-NMeth}
+Virtanen, P., Gommers, R., Oliphant, T.~E., Haberland, M., Reddy, T.,
+  Cournapeau, D., Burovski, E., Peterson, P., Weckesser, W., Bright, J., {van
+  der Walt}, S.~J., Brett, M., Wilson, J., Millman, K.~J., Mayorov, N., Nelson,
+  A. R.~J., Jones, E., Kern, R., Larson, E., Carey, C.~J., Polat, {\.I}., Feng,
+  Y., Moore, E.~W., {VanderPlas}, J., Laxalde, D., Perktold, J., Cimrman, R.,
+  Henriksen, I., Quintero, E.~A., Harris, C.~R., Archibald, A.~M., Ribeiro,
+  A.~H., Pedregosa, F., {van Mulbregt}, P., and {SciPy 1.0 Contributors}
+  (2020).
+\newblock {SciPy} 1.0: Fundamental algorithms for scientific computing in
+  {Python}.
+\newblock {\em Nature Methods}, 17:261--272.
+
+\bibitem[\protect\astroncite{Volz et~al.}{2013}]{volz2013viral}
+Volz, E.~M., Koelle, K., and Bedford, T. (2013).
+\newblock Viral phylodynamics.
+\newblock {\em PLoS Computational Biology}, 9(3):e1002947.
+
+\bibitem[\protect\astroncite{Wakeley et~al.}{2012}]{wakeley2012gene}
+Wakeley, J., King, L., Low, B.~S., and Ramachandran, S. (2012).
+\newblock Gene genealogies within a fixed pedigree, and the robustness of
+  {K}ingman’s coalescent.
+\newblock {\em Genetics}, 190(4):1433--1445.
+
+\bibitem[\protect\astroncite{Wang and Bradburd}{2014}]{wang2014isolation}
+Wang, I.~J. and Bradburd, G.~S. (2014).
+\newblock Isolation by environment.
+\newblock {\em Molecular Ecology}, 23(23):5649--5662.
+
+\bibitem[\protect\astroncite{Wilkins}{2004}]{wilkins2004separation}
+Wilkins, J.~F. (2004).
+\newblock A separation-of-timescales approach to the coalescent in a continuous
+  population.
+\newblock {\em Genetics}, 168(4):2227--2244.
+
+\bibitem[\protect\astroncite{Wilkins and Wakeley}{2002}]{wilkins2002coalescent}
+Wilkins, J.~F. and Wakeley, J. (2002).
+\newblock The coalescent in a continuous, finite, linear population.
+\newblock {\em Genetics}, 161(2):873--888.
+
+\bibitem[\protect\astroncite{Wiuf}{2006}]{wiuf2006consistency}
+Wiuf, C. (2006).
+\newblock Consistency of estimators of population scaled parameters using
+  composite likelihood.
+\newblock {\em Journal of Mathematical Biology}, 53(5):821--841.
+
+\bibitem[\protect\astroncite{Wohns et~al.}{2021}]{wohns2021unified}
+Wohns, A.~W., Wong, Y., Jeffery, B., Akbari, A., Mallick, S., Pinhasi, R.,
+  Patterson, N., Reich, D., Kelleher, J., and McVean, G. (2021).
+\newblock A unified genealogy of modern and ancient genomes.
+\newblock {\em bioRxiv}, doi:10.1101/2021.02.16.431497.
+
+\bibitem[\protect\astroncite{Worobey et~al.}{2020}]{worobey2020emergence}
+Worobey, M., Pekar, J., Larsen, B.~B., Nelson, M.~I., Hill, V., Joy, J.~B.,
+  Rambaut, A., Suchard, M.~A., Wertheim, J.~O., and Lemey, P. (2020).
+\newblock {The emergence of SARS-CoV-2 in Europe and North America}.
+\newblock {\em Science}, 370(6516):564--570.
+
+\bibitem[\protect\astroncite{Wright}{1943}]{wright1943isolation}
+Wright, S. (1943).
+\newblock Isolation by distance.
+\newblock {\em Genetics}, 28(2):114--138.
+
+\bibitem[\protect\astroncite{Zeng et~al.}{2017}]{zeng2017discovery}
+Zeng, L., Gu, Z., Xu, M., Zhao, N., Zhu, W., Yonezawa, T., Liu, T., Qiong, L.,
+  Tersing, T., Xu, L., et~al. (2017).
+\newblock Discovery of a high-altitude ecotype and ancient lineage of
+  \textit{Arabidopsis thaliana} from tibet.
+\newblock {\em Science Bulletin}, 62(24):1628--1630.
+
+\bibitem[\protect\astroncite{Zou et~al.}{2017}]{zou2017adaptation}
+Zou, Y.-P., Hou, X.-H., Wu, Q., Chen, J.-F., Li, Z.-W., Han, T.-S., Niu, X.-M.,
+  Yang, L., Xu, Y.-C., Zhang, J., et~al. (2017).
+\newblock Adaptation of \textit{Arabidopsis thaliana} to the {Yangtze River}
+  basin.
+\newblock {\em Genome Biology}, 18(1):1--11.
+
+\end{thebibliography}

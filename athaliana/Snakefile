@@ -1,0 +1,1130 @@
+#  -----------  python modules --------------
+
+import numpy as np
+import h5py #for reading hdf5 format (imputed SNP matrix)
+import csv
+from Bio import SeqIO #biopython reads fastas
+from Bio.SeqRecord import SeqRecord #to write fastas
+import tskit #to deal with tree sequences
+import sparg #to run our method
+import pandas as pd #to deal with metadata
+
+# ------------  paths --------------------
+
+DATADIR = 'data/' #where to put outputs
+SCRIPTDIR = 'scripts/' #location of accessory scripts
+PROGRAMDIR = '~/programs/' #where programs live
+PLINK2 = PROGRAMDIR + 'plink2' #plink2, for filtering SNPs
+ESTSFS = PROGRAMDIR + 'est-sfs-release-2.03/est-sfs' #program to estimate ancestral genome (note that you need to increase max_config and max_n_alleles in est-sfs.c to deal with 1001G whole chromosomes)
+RELATE = PROGRAMDIR + 'relate_v1.1.4_x86_64_static' #where relate lives
+
+# -----------------files ------------------
+
+snp_file = '1001genomes_snp-short-indel_only_ACGTN.vcf.gz'
+genome_file = '1001_SNP_MATRIX.tar.gz'
+MAFtoFASTA = PROGRAMDIR + 'bx-python/scripts/maf_to_concat_fasta.py' #script from bx-python to make fasta from multi-species alignment 
+SEEDFILE = SCRIPTDIR + 'seedfile.txt' # random seed for est-sfs (changes after every run, so don't use as input because will then try and rerun)
+popsize_script = RELATE + '/scripts/EstimatePopulationSize/EstimatePopulationSizeMMO.sh' #edited this to work for haploids and output anc/mut
+accessions_file = DATADIR + '1001G_metadata.csv' 
+location_file = DATADIR + '1001G.locs' 
+
+# ---------------- parameters-------------------
+
+chromosomes = range(1,6) #chromosomes to run this for
+chr_lens = [30427671, 19698289, 23459830, 18585056, 26975502] #chromosome lengths (TAIR 10, stdpopsim, maf file all agree; note the maf includes the chloroplast which we ignore)
+
+# inferring tree sequence
+twoNes = [170000] #initial estimates of 2Ne (from 2Ne = ts.diversity()/(2u))
+us = [7e-9] #mutation rate estimate 
+num_iters = [5] #number of MCMC iterations to do when reestimating pop size and branch lengths
+thresholds = [0.5] #percent of trees to drop when restimating branch lengths
+
+# processing trees
+nloci = 1000 #number of loci to get trees at on each chromosomes
+loci = range(nloci)
+tCutoffs = [10000] #,10000] #gens to go back to (ignore older branches)
+M = 10 #number of trees to sample at each locus for importance sampling
+
+# inferring dispersal and locations
+dCutoffs = [1000] #number of SNPs two samples must differ by to not be "nearly identical"
+method = 'L-BFGS-B' #method for minimum finding
+scale_phi = 100 #scale branching rate to have similar variance as other parameters (speed up minimize)
+groups = ['Eurasia-no-Japan'] #, 'eurasia'] #which samples to include
+#groups = ['Eurasia']
+bnds = [(1e-6,None), (1e-6,None), (-0.99,0.99), (1e-6,None)] #bounds on parameters being estimated (sigma, sigma, rho, phi)
+locations_bnds = ((-90,90), (-180,180)) #bounds on locations (in lat/long)
+xonly = False #sneaky code to find mcle dispersal in longitude only
+yonly = True #latitude only
+
+# initial guess at dispersal parameters
+x0s = [
+       [1, 2, 0, #1 epoch
+        0.01*scale_phi],
+       [4e-2, 2e-1, 0,   #2 epoch (oldest epoch first)
+        1, 2, 0, 
+        0.01*scale_phi],
+       [4e-2, 2e-1, 0,   #3 epoch
+        4e-2, 2e-1, 0,
+        1, 3, 0,
+        0.01*scale_phi],
+       [0.2, 0.6, 0,     #4 epoch
+        0.4, 0.8, 0, 
+        0.7, 0.9, 0, 
+        3, 7, 0, 
+        0.01*scale_phi],
+       [4e-2, 2e-1, 0,
+        0.2, 0.6, 0,     #5 epoch
+        0.4, 0.8, 0, 
+        0.7, 0.9, 0, 
+        3, 7, 0, 
+        0.01*scale_phi]
+      ]
+
+# mle dispersal
+mle_dispersal_loci = range(0, nloci, 1) 
+mle_dispersal_tsplits = [[]]
+
+# mcle dispersal
+mcle_dispersal_loci = range(0, nloci, 10)
+mcle_dispersal_tsplits = [
+                          [],                     #1 epoch
+                         # [10],[100],[1000],          #2 epochs 
+                         # [10,100],[10,1000],[100,1000], #3 epochs
+                         # [10,100,1000],               #4 epochs
+                         # [1,10,100,1000] #5 epochs
+                         ]
+
+# displacements of all samples
+displacements_loci = range(0, nloci, 10) 
+displacements_times = [10,100,1000] #geneartions ago to calculate displacements
+displacements_tsplits = [[10,100,1000]] #splits times for displacements
+
+# ancestor locations of specific samples
+ancestor_locations_loci = range(0, nloci, 1)
+ancestor_locations_times = np.logspace(0, 3, 10) #when to locate ancestors
+ancestor_locations_tsplits = [[10,100,1000]]
+ancestor_locations_nodes = [
+                            #323, #cabo verde sample
+                            #338, #pure spain in spain
+                            #694, #near 50:50 spain and relict in spain
+                            #697,  #pure relict in spain
+                            431, #one of the two japan samples (use with group=Eurasia if want to see disperal)
+                           ]
+# params for NA locations
+#locations = np.loadtxt(location_file) #locations of samples
+#NA_nodes = [i for i,j in enumerate(locations) if j[1]<-30] #in NA
+#ancestor_locations_nodes = NA_nodes
+#ancestor_locations_times = np.linspace(0,1000,11) #linear time scale
+
+# ancestral locations of misplaced nodes (misplaced to mean of all kept samples)
+misplaced_loci = range(0, nloci, 1)
+misplaced_nodes = [
+                    697 # a relict in spain that is kept
+                  ]
+misplaced_tsplits = [[10,100,1000]]
+misplaced_times = ancestor_locations_times
+
+# --------------- functions -------------------------
+
+def filter_samples(locations, group, clusters):
+    
+  if group == 'Eurasia':
+    not_na = [i for i,j in enumerate(locations) if j[1]>-30] #not in NA (longitude greater than -30), and not missing (since the inequality is false when nan)
+  elif group == 'Eurasia-no-Japan':
+    not_na = [i for i,j in enumerate(locations) if j[1]>-30 and j[1]<120] #not NA, Japan, or nan
+  
+  # try to make clusters from pairwise differences  
+  #remove = []
+  #for cluster in clusters:
+  #  remove.append(cluster[1:]) #remove all but first sample in each cluster (a bit of a rough approach)
+  #remove = [i for j in remove for i in j] #flatten the list
+
+  # just remove all samples
+  remove = np.unique(clusters) #remove all samples that are in a nearly identical pair
+
+  sample_ix = range(len(locations)+1) #index for all samples
+  sample_ix_nonidentical = [i for i in sample_ix if i not in remove] #list of nonidentical sample idices
+  keep = [i for i in sample_ix_nonidentical if i in not_na] #list of samples to keep
+
+  return keep
+
+# ------------------ download SNPs ----------------------------
+
+rule get_snps:
+  input:
+  output:
+    DATADIR + snp_file,
+  resources:
+    time = 60
+  shell:
+    """
+    wget https://1001genomes.org/data/GMI-MPI/releases/v3.1/{snp_file} -P {DATADIR}
+    """
+
+# ------------------- filter SNPS ------------------------------------
+
+rule filter_snps:
+  input:
+    DATADIR + snp_file
+  output:
+    DATADIR + '1001G.fam',
+    DATADIR + '1001G_MAF0.05.bim',
+    DATADIR + '1001G.bed',
+    DATADIR + '1001G_MAF0.05.bed'
+  resources:
+    time = 15
+  threads: 40
+  shell:
+    """
+    # use plink2 to make binary ped file (bed, with genotype info) and associated pedigree (fam, sample names) and map (bim, allele names) from the SNP VCF
+    #filtering out SNPs where more than 20% of individuals have missing data
+    # and filtering to biallelic SNPs  
+
+    {PLINK2} \
+        --snps-only \
+        --geno 0.2 \
+        --max-alleles 2 \
+        --vcf {input} \
+        --out {DATADIR}1001G \
+        --make-bed \
+        --threads {threads}
+
+    # use plink2 to prune SNPs in LD 
+    #and remove SNPs with minor allele frequency less than 0.05
+    #and set any missing variant ID to chromosome:basepair (@:#)
+
+    {PLINK2} \
+        --bfile {DATADIR}1001G \
+        --maf 0.05 \
+        --out {DATADIR}1001G_MAF0.05 \
+        --set-missing-var-ids @:# \
+        --make-bed \
+        --threads {threads} 
+    """
+# ------------------ download imputed haploid genomes ----------------------------
+
+rule get_genomes:
+  input:
+  output:
+    DATADIR + '1001_SNP_MATRIX/imputed_snps_binary.hdf5'
+  resources:
+    time = 10
+  shell:
+    """
+    wget https://1001genomes.org/data/GMI-MPI/releases/v3.1/SNP_matrix_imputed_hdf5/{genome_file} -P {DATADIR}
+    tar -xzf {DATADIR}{genome_file} -C {DATADIR} 
+    """
+
+# ------------------ filter imputed snps and convert hdf5 to haps format -----------------
+
+haps_pattern = DATADIR + '1001G_chr{CHR}.haps'
+haps_results = expand(haps_pattern, CHR=chromosomes)
+
+rule snps_to_haps:
+  input:
+    DATADIR + '1001_SNP_MATRIX/imputed_snps_binary.hdf5',
+    DATADIR + '1001G_MAF0.05.bim',
+  output:
+    haps_results
+  resources:
+    time = 60
+  run:
+    # load files
+    f = h5py.File(input[0], 'r') # this is the imputed SNP matrix provided by the 1001G project 
+    listofsnps = np.genfromtxt(input[1], dtype="str")[:,1] # this is the list of SNPs after filters (made using plink2 on the vcf from 1001G)
+    alleles = np.genfromtxt(input[1], dtype="str")[:,4:6] # these are the ref and alt alleles
+    # get info
+    positions = f['positions'][:]# Get all SNP positions for all chromosomes
+    chr_regions = f['positions'].attrs['chr_regions']# Get start and end points of chromosomes
+    # Initialize arrays to hold indices and positions
+    indices = []
+    positions_chr = []
+    positions_all = []
+    genotypes = []
+    position = []
+    ix = []
+    # The positions in the h5py files are NOT associated with chromosome number so we need to retrieve the indices to delimit the 5 chromosomes
+    for i in chromosomes:
+      indices.append(chr_regions[i-1])
+    # convert positions to chr:position format so we can find the intersection with the pruned list
+    count = 0
+    for i in chromosomes:
+      positions_chr = [str(i)+":"+str(position) for position in positions[indices[i-1][0]:indices[i-1][1]]]
+      if count == 0:
+        positions_all = positions_chr
+      else:
+        positions_all = np.append(positions_all, positions_chr)
+      count += 1
+    # the intersection
+    ix = np.where(np.isin(positions_all, listofsnps))
+    ix = np.array(ix, dtype=int)[0] #reformat
+    # chromosome id for each snp position
+    chrsid = np.hstack([[i+1] * j for i,j in enumerate(chr_regions[:,1]-chr_regions[:,0])])
+    # number of filtered snps on each chromosome
+    temp, chrslen = np.unique(chrsid[ix], return_counts=True)
+    # get reference and alternate allele
+    permutation = [1,0]# note that plink seems to list alternate alleles first, so flip
+    idx = np.empty_like(permutation)
+    idx[permutation] = np.arange(len(permutation))
+    alleles = alleles[:, idx]
+    # save haps file one row at a time, one file for each chromosome
+    chrlens = np.hstack([0,chrslen]) #add 0 for easier indexing
+    chrbreaks = np.cumsum(chrlens) # endpoint filtered snp indexes for each chromosome
+    for i in chromosomes:
+      filename = DATADIR + '1001G_chr%d' %i #filename
+      ixi = ix[chrbreaks[i-1]:chrbreaks[i]] #chromosome i indices
+      # haps file
+      with open(filename  + '.haps', mode='w') as file:
+        writer = csv.writer(file, delimiter=' ')
+        for j,k in enumerate(ixi):
+          data = np.hstack((i, '.', positions[k], alleles[chrbreaks[i-1] + j], f['snps'][k])) # format as required for haps file in relate
+          writer.writerow(data)
+      file.close()
+
+# ------------------- make fasta with outgroup genomes ---------------------
+
+rule outgroup_fasta:
+  input:
+    DATADIR + 'Thal_ref_Boec_Lyra_Malc_outgroups_nodupes_orthoonly.maf' #multi-species alignment from Tyler Kent (Wright lab, University of Toronto)
+  output:
+    DATADIR + 'Lyra_Boec_Malc.fa' #fasta with outgroup genomes
+  resources:
+    time = 10 
+  shell:
+    '''
+    python {MAFtoFASTA} Lyra,Boec,Malc < {input[0]} > {output[0]}
+    '''
+
+# -------------------- make input file for est-sfs program ----------------------------- 
+
+est_pattern = haps_pattern.replace('haps','est')
+est_results = expand(est_pattern, CHR=chromosomes)
+
+rule all_est_files:
+  input:
+    est_results
+
+rule est_file:
+  input:
+    DATADIR + 'Lyra_Boec_Malc.fa',
+    haps_pattern
+  output:
+    est_pattern 
+  resources:
+    time = 10 
+  run:
+    # load outgroup sequences
+    out_seqs = []
+    for seq_record in SeqIO.parse(input[0], "fasta"):
+      out_seqs.append(seq_record.seq) #sequence of outgroup
+    nouts = len(out_seqs) #number of outgroups 
+    # make est file
+    with open(output[0], 'w') as file: #file to write to
+      with open(input[1], 'r') as f: #haps file to read
+        for i,line in enumerate(f): #load line by line for memory sake
+          data = line.split() #divide line into elements (separated by whitespace)
+          if i == 0:
+            nsamples = len(data) - 5 #number of samples
+          ref = data[3] #reference allele
+          alt = data[4] #alternate allele
+          nalt = sum(list(map(int,data[5:]))) #number of alternate alleles (have to convert string to integers)
+          nref = nsamples - nalt #number of reference alleles (assumes biallelic)
+          counts = [0,0,0,0] #number of A,C,G,T
+          for allele,count in [[ref,nref],[alt,nalt]]: #for ref and alt put the count in the right bin
+            if allele == 'A':
+              counts[0] = count
+            elif allele == 'C':
+              counts[1] = count
+            elif allele == 'G':
+              counts[2] = count
+            else:
+              counts[3] = count
+          outcounts = [[0,0,0,0] for _ in range(nouts)] #initialize
+          site = int(data[2]) - 1 #note that biopython starts from 0 but the site numbers in the haps file start with 1
+          site = site + sum(chr_lens[:(int(wildcards.CHR) - 1)]) # add length of preceding chromosomes to find correct index in outgroup fasta	
+          for j in range(nouts):
+            allele = out_seqs[j][site]
+            if allele == 'A' or allele == 'a':
+              outcounts[j][0] = 1
+            elif allele == 'C' or allele == 'c':
+              outcounts[j][1] = 1
+            elif allele == 'G' or allele == 'g':
+              outcounts[j][2] = 1
+            elif allele == 'T' or allele == 't':
+              outcounts[j][3] = 1
+          file.write(','.join(map(str,counts)) + ' ' + ' '.join([','.join(map(str,i)) for i in outcounts]) + '\n') #write in est format, line by line
+
+# ------------------- run est-sfs to get ancestral genome -----------------------------
+
+sfs_pattern = est_pattern.replace('est', 'sfs')
+pvalues_pattern = est_pattern.replace('est', 'pvalues')
+
+pvalues_results = expand(pvalues_pattern, CHR=chromosomes)
+
+rule all_est_sfs:
+  input:
+    pvalues_results
+
+rule est_sfs:
+  input: 
+    est_pattern,
+    SCRIPTDIR + 'config-kimura.txt', # choices for est-sfs program (edited version that comes with est-sfs) 
+  output:
+    sfs_pattern, #site frequency spectrum
+    pvalues_pattern #probability of each base being ancestral
+  resources:
+    time = 60
+  shell:
+    '''
+    module load gcc gsl #need gsl libraries
+    {ESTSFS} {input[1]} {input[0]} {SEEDFILE} {output[0]} {output[1]}
+
+    '''
+
+# -------------------- make reference genome from multi-species alignment ----------
+
+rule reference_genome:
+  input:
+    DATADIR + 'Thal_ref_Boec_Lyra_Malc_outgroups_nodupes_orthoonly.maf' #multi-species alignment from Tyler Kent (Wright lab, University of Toronto)
+  output:
+    DATADIR + 'Thal.fa' #fasta with outgroup genomes
+  resources:
+    time = 10 
+  shell:
+    '''
+    python {MAFtoFASTA} Thal < {input[0]} > {output[0]}
+    '''
+
+# ------------------- make ancestral genome from pvalues --------------------
+
+ancestral_chr_pattern = pvalues_pattern.replace('pvalues','fa')
+
+ancestral_chr_results = expand(ancestral_chr_pattern, CHR=chromosomes)
+rule all_ancestral_chromosomes:
+  input:
+    ancestral_chr_results
+
+rule ancestral_chromosome:
+  input:
+    DATADIR + 'Thal.fa',
+    haps_pattern,
+    pvalues_pattern
+  output:
+   ancestral_chr_pattern
+  resources:
+    time = 10
+  run:
+    # load reference genome 
+    for seq_record in SeqIO.parse(input[0], "fasta"):
+      start = sum(chr_lens[:(int(wildcards.CHR) - 1)]) #start of chromosome
+      end = sum(chr_lens[:(int(wildcards.CHR))]) #end of chromosome
+      ref = seq_record.seq[start:end] #sequence of reference on chromosome
+    ref = ref.upper() #use all uppercase letters
+    # load site number and alleles at all SNPs
+    snps = []
+    with open(input[1], 'r') as g: #file to read reference and alternate allele from
+      for i,line in enumerate(g): #go line by line
+        data = line.split() #split up the elements
+        snps.append([int(data[2]),data[3],data[4]]) #append the site number and reference and alternate alleles
+    # now use est-sfs to decide which SNPs to flip
+    flip_snps = []
+    with open(input[2], 'r') as f: #file to read probability of reference allele being ancestral from
+      for i,line in enumerate(f): #load line by line for memory sake
+        data = line.split() #separate the elements
+        if int(data[0]) > 0: #skip the header
+          if float(data[2]) < 0.5: #if the probability that the reference allele is ancestral is less than 0.5 we make the alternate ancestral
+            n = int(data[1]) #index of snp 
+            flip_snps.append(snps[n])
+    # check
+    for i in np.random.choice(range(len(flip_snps)),10):
+      snp = flip_snps[i]
+      print(snp[1],ref[snp[0]-1]) #should match, check log
+    # flip snps
+    mutable_ref = ref.tomutable() #allow us to edit the sequence
+    for i in flip_snps:
+      mutable_ref[i[0]-1] = i[2] #flip the snps
+    ancestor = mutable_ref.toseq()
+    # save
+    record = SeqRecord(ancestor, id="ancestral 1001G sequence inferred by est-sfs;", description='outgroups: Lyrata, Boechera, and Malcolmia')
+    SeqIO.write(record, output[0], "fasta") #save as fasta
+
+# ------------------- make sample file ------------------
+
+sample_file = DATADIR + '1001G.sample' 
+
+rule sample_file:
+  input:
+    DATADIR + '1001G.fam'
+  output:
+    sample_file
+  resources:
+    time = 10
+  run:
+    inds = np.genfromtxt(input[0], dtype="str")[:,1] #get list of individual IDs
+    with open(output[0], mode='w') as file:
+      writer = csv.writer(file, delimiter=' ') #space delimited
+      writer.writerow(['ID_1','ID_2','missing']) #header
+      writer.writerow(['0','0','0']) #for some reason relate starts with this null first row, https://myersgroup.github.io/relate/input_data.html
+      for i in inds:
+        data = np.hstack((i, 'NA', 0)) #add each individual as row, with NA signifying that these are haploids
+        writer.writerow(data)
+    file.close()
+
+# -------------------- polarize snps in hap file -----------------------------
+
+flipped_haps_pattern = haps_pattern.replace('.haps','_flipped.haps')
+
+flipped_haps_results = expand(flipped_haps_pattern, CHR=chromosomes)
+rule all_flip_snps:
+  input:
+    flipped_haps_results
+
+rule flip_snps:
+  input:
+    haps_pattern,
+    sample_file,
+    ancestral_chr_pattern
+  output:
+    flipped_haps_pattern
+  resources:
+    time = 1 * 60
+  shell:
+    '''
+    {RELATE}/bin/RelateFileFormats \
+      --mode FlipHapsUsingAncestor \
+      --haps {input[0]} \
+      --sample {input[1]} \
+      --ancestor {input[2]} \
+      -o {DATADIR}1001G_chr{wildcards.CHR}_flipped 
+    '''
+
+# --------------------- download recombination map -----------------------
+
+map_pattern = DATADIR + 'arab_chr{CHR}_map_loess.txt'
+
+map_results = expand(map_pattern, CHR=chromosomes)
+
+rule all_maps:
+  input:
+    map_results
+
+rule get_maps:
+  input:
+  output:
+    DATADIR + 'salome2012_maps.tar.gz',
+    map_results
+  shell:
+    """
+    wget --no-check-certificate https://www.eeb.ucla.edu/Faculty/Lohmueller/data/uploads/salome2012_maps.tar.gz -P {DATADIR}
+    tar -xf {DATADIR}salome2012_maps.tar.gz -C {DATADIR}
+    """
+
+# --------------------- infer tree sequence ----------------------------------
+
+relate_pattern = haps_pattern.replace('.haps', '_2Ne{twoNe}_u{u}.{filetype}')
+
+filetypes = ['anc', 'mut']
+relate_results = expand(relate_pattern, CHR=chromosomes, twoNe=twoNes, u=us, filetype=filetypes)
+
+rule all_relate:
+  input:
+    relate_results
+
+rule relate:
+  input:
+    flipped_haps_pattern,
+    sample_file,
+    map_pattern  
+  output:
+    expand(relate_pattern, filetype=filetypes, allow_missing=True)
+  resources:
+    time =  18 * 60 
+  #wildcard_constraints:
+  #  u = "[-+e0-9]"
+  #threads: 8
+  shell:
+    """
+    #{RELATE}/scripts/RelateParallel/RelateParallel.sh #parallelize
+    {RELATE}/bin/Relate --mode All \
+      -m {wildcards.u} \
+      -N {wildcards.twoNe} \
+      --haps {input[0]} \
+      --sample {input[1]} \
+      --map {input[2]} \
+      --seed 1 \
+      --memory 175 \
+      -o 1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}
+    #  --threads {threads}
+    #  since we need to run relate in the working directory, now move output to data directory
+    mv 1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}.* {DATADIR}
+    """
+
+# ---------------------- make poplabels file ------------------------------
+
+poplabels_file = DATADIR + '1001G.poplabels'
+
+rule poplabels:
+  input:
+    DATADIR + '1001G.fam'
+  output:
+    poplabels_file
+  resources:
+    time = 10
+  run:
+    inds = np.genfromtxt(input[0], dtype="str")[:,1] #load individual IDs
+    with open(output[0], mode='w') as file:
+      writer = csv.writer(file, delimiter=' ')
+      writer.writerow(['sample','population','group','sex'])
+      for i in inds:
+        data = np.hstack((i, 0, 0, 1)) #set sex to 1 for haploids
+        writer.writerow(data)
+    file.close()
+
+# --------------------- reestimate pop size and branch lengths -----------------------
+
+popsize_pattern = relate_pattern.replace('.{filetype}', '_popsize_numiter{num_iter}_threshold{threshold}.{filetype}')
+filetypes = ['anc','mut','coal']
+popsize_results = expand(popsize_pattern, CHR=chromosomes, twoNe=twoNes, u=us, num_iter=num_iters, threshold=thresholds, filetype=filetypes)
+
+rule all_popsize:
+  input:
+    popsize_results
+
+# need this when cant use wildcard constraint above
+ruleorder: popsize > relate
+
+rule popsize:
+  input:
+    relate_pattern.replace('{filetype}',filetypes[0]),
+    relate_pattern.replace('{filetype}',filetypes[1]),
+    poplabels_file
+  output:
+    popsize_pattern.replace('{filetype}', filetypes[0]),
+    popsize_pattern.replace('{filetype}', filetypes[1]),
+    popsize_pattern.replace('{filetype}', filetypes[2])
+  threads: 40
+  resources:
+    time = 6 * 60
+  shell:
+    """
+    # module load R #because relate wants to plot popsize and mutation rate estimates (nevermind, I commented out the plotting functions to avoid this)
+    {popsize_script} \
+      -i {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u} \
+      -o {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold} \
+      -m {wildcards.u} \
+      --poplabels {input[2]} \
+      --years_per_gen 1 \
+      --threshold {wildcards.threshold} \
+      --num_iter {wildcards.num_iter} \
+      --noanc 0 \
+      --threads {threads}
+    # now unpack the anc and mut files (comment this out if only using 1 thread, as relate only gzips when it parallelizes)
+    gzip -d {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold}.anc.gz
+    gzip -d {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold}.mut.gz
+    """
+
+# ----------------------- convert to tree sequence -------------------------------------
+
+tree_pattern = popsize_pattern.replace('{filetype}','trees')
+tree_results = expand(tree_pattern, CHR=chromosomes, twoNe=twoNes, u=us, num_iter=num_iters, threshold=thresholds)
+
+rule all_to_ts:
+  input:
+    tree_results
+
+rule to_ts:
+  input:
+    popsize_pattern.replace('{filetype}','anc'),
+    popsize_pattern.replace('{filetype}','mut')
+  output:
+    tree_pattern
+  resources:
+    time = 60
+  shell:
+    """
+    {RELATE}/bin/RelateFileFormats \
+      --mode ConvertToTreeSequence \
+      -i {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold} \
+      -o {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold}
+    """
+
+# --------------------- choose loci to sample ----------------------
+
+loci_pattern = popsize_pattern.replace('.{filetype}','_nloci%d.npz' %nloci)
+loci_results = expand(loci_pattern, CHR=chromosomes, twoNe=twoNes, u=us, num_iter=num_iters, threshold=thresholds)
+
+rule all_choose_loci:
+  input:
+    loci_results
+
+rule choose_loci:
+  input:
+    tree_pattern
+  output:
+    loci_pattern
+  resources:
+    time = 10
+  run:
+    ts = tskit.load(input[0]) #load tree sequence
+    which = np.linspace(0, ts.num_trees-1, nloci, dtype=int) #uniformly choose nloci tree indices
+    which_trees, intervals = sparg.choose_loci(ts, which=which, mode='tree') #determine tree indices and genomic intervals of each
+    np.savez(output[0], which_trees=which_trees, intervals=intervals) #save for downstream
+
+# --------------------- process trees at chosen loci ----------------------
+
+trees_pattern = popsize_pattern.replace('.{filetype}','_processed_trees_locus{locus}_tCutoff{tCutoff}.npz')
+sub_pattern = popsize_pattern.replace('.{filetype}','_sub_locus{locus}.newick')
+
+trees_results = expand(trees_pattern, CHR=chromosomes,
+                       twoNe=twoNes, u=us,
+                       num_iter=num_iters, threshold=thresholds,
+                       locus=loci,
+                       tCutoff=tCutoffs)
+
+rule all_trees:
+  input:
+    trees_results
+
+rule process_trees:
+  input:
+    loci_pattern,
+    expand(popsize_pattern, filetype=filetypes, allow_missing=True)
+  output:
+    trees_pattern
+  run:
+    # load list of trees we are going to sample
+    npz = np.load(input[0], allow_pickle=True)
+    which_trees = npz['which_trees']
+    intervals = npz['intervals']
+    # and choose one to process
+    i = int(wildcards.locus)
+    locus = which_trees[i]
+    print('tree index:', locus)
+    interval = intervals[i]
+    print('genomic interval:', interval)
+    # process
+    coal_times, pcoals, shared_times, samples = sparg.process_trees(which_loci=[locus], 
+                                                                    intervals=[interval], 
+                                                                    tCutoff=int(wildcards.tCutoff), 
+                                                                    important=True, 
+                                                                    M=M, 
+                                                                    PATH_TO_RELATE=RELATE, 
+                                                                    u=float(wildcards.u), 
+                                                                    infile=input[1].replace('.anc',''), 
+                                                                    outfile=output[0].replace('processed_trees','sub').replace('tCutoff%d.npz' %int(wildcards.tCutoff),''), 
+                                                                    coalfile=input[3]) #this makes the sub file (newick file of subtrees)
+    # save
+    np.savez(output[0], coal_times=coal_times, pcoals=pcoals, shared_times=shared_times, samples=samples)
+
+# --------------------- calculate genetic distances between samples ------------
+
+gdist_pattern = DATADIR + '{ending}'
+endings = ['1001G','1001G_MAF0.05']
+gdist_results = expand(gdist_pattern+'.dist', ending=endings)
+
+rule all_genetic_distances:
+  input:
+    gdist_results
+
+rule genetic_distances:
+  input:
+    gdist_pattern + '.bed'
+  output: 
+    gdist_pattern + '.dist'
+  resources:
+    time = 15
+  threads: 40
+  shell:
+    """
+    module load plink/1.90b6
+    plink --bfile {DATADIR}{wildcards.ending} --recode --tab --out {DATADIR}{wildcards.ending} --threads {threads} #first need to reformat from .bed to .ped
+    plink --distance allele-ct ibs --file {DATADIR}{wildcards.ending} --out {DATADIR}{wildcards.ending} --threads {threads} #find number of SNP differences, and 1 - proportion of SNPs they differ by
+    """
+
+# ---------------------- find clusters of nearly identical samples ----------------
+
+clusters_pattern = DATADIR + '1001G_MAF0.05_dCutoff{dCutoff}_clusters.npy'
+clusters_results = expand(clusters_pattern, dCutoff=dCutoffs)
+
+rule all_clusters:
+  input:
+    clusters_results
+
+rule clusters:
+  input:
+    DATADIR + '1001G_MAF0.05.dist'
+  output:
+    clusters_pattern
+  resources:
+    time = 15
+  run:
+    #load genetic distances
+    distances = []
+    with open(input[0], 'r') as file:
+      for i,line in enumerate(file):
+        distances.append([float(v) for v in line.strip().split("\t")])    
+    # find nearly identical pairs
+    identical_pairs = []
+    for i,distance in enumerate(distances):
+      for j,d in enumerate(distance):
+        if d < float(wildcards.dCutoff):
+          identical_pairs.append([i+1,j])
+    # make clusters from identical pairs 
+    #i,j = identical_pairs[0]
+    #clusters = [[i,j]] #seed with first identical pair
+    #for i,j in identical_pairs[1:]: #now loop through each additional identical pair
+    #  dummy = 0
+    #  for cluster in clusters: #look at each existing cluster
+    #    if j in cluster: #if j in cluster
+    #      if i not in cluster: #and i not in cluster
+    #        cluster.append(i) #add i
+    #      dummy = 1 #successfully found a cluster that j was in
+    #      exit #move on to next identical_pair
+    #  if dummy == 0: #if j not in any cluster
+    #    clusters.append([i,j]) #make a new cluster
+    # save
+    #np.save(output[0], clusters, 'dtype=object')
+    np.save(output[0], identical_pairs, 'dtype=object')
+
+# ---------------------- download metadata on 1001G ----------------------------
+
+rule get_metadata:
+  input:
+  output:
+    accessions_file
+  shell:
+    """
+    wget https://raw.githubusercontent.com/hagax8/arabidopsis_viz/master/data/dataframe_1001G.csv -O {accessions_file}
+    """
+
+# --------------------- make file with locations of samples -----------------------------
+
+rule get_locations:
+  input:
+    accessions_file
+  output:
+    location_file
+  run:
+    metadata = pd.read_csv(input[0], header=0)
+    all_locs = np.array(np.array(metadata)[:,4:6], dtype='float')
+    np.savetxt(output[0], all_locs) 
+
+# --------------------- get mles at individual loci ----------------------
+
+mles_pattern = popsize_pattern.replace('.{filetype}', '_tCutoff{tCutoff}_dCutoff{dCutoff}_group{group}_tsplits{tsplits}_locus{locus}_mle-dispersal.npy').replace('_popsize','')
+mles_results = expand(mles_pattern, CHR=chromosomes,
+                      twoNe=twoNes, u=us,
+                      num_iter=num_iters, threshold=thresholds,
+                      tCutoff=tCutoffs,
+                      dCutoff=dCutoffs, group=groups,
+                      tsplits=mle_dispersal_tsplits,
+                      locus=mle_dispersal_loci)
+
+rule all_mles:
+  input:
+    mles_results
+
+rule mles:
+  input:
+    trees_pattern,
+    location_file,
+    clusters_pattern
+  output:
+    mles_pattern
+  resources:
+    time = 15 
+  threads: 40
+  run:
+    os.environ["OMP_NUM_THREADS"] = str(threads) 
+    # load processed trees
+    processed_trees = np.load(input[0], allow_pickle=True)
+    coal_times = processed_trees['coal_times']
+    pcoals = processed_trees['pcoals']
+    shared_times = processed_trees['shared_times']
+    samples = processed_trees['samples']
+    # determine which samples to keep
+    locations = np.loadtxt(input[-2]) #locations of samples
+    group = str(wildcards.group) #which samples to use
+    clusters = np.load(input[-1], allow_pickle=True) #clusters of nearly identical samples
+    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
+    # filter lists of samples and matrices of shared_times to keep only those samples we want (they are still in the pcoals and coal_times though)
+    samples_keep, shared_times_keep = sparg._filter_samples_times(samples, shared_times, keep)
+    # tsplits and bounds and initial guess
+    tsplits = []
+    for i in (wildcards.tsplits).strip('[]').split(', '):
+      try:
+        tsplits += [float(i)]
+      except:
+        tsplits += []
+    bounds = tuple(bnds[0:3]*(len(tsplits)+1) + [bnds[-1]]) #bounds on parameters
+    x0 = x0s[len(tsplits)] #initial guess
+    sphi = scale_phi
+    # and find mle dispersal
+    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times_keep, samples_keep, x0=x0, bnds=bounds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=sphi, remove_missing=False, method=method, tsplits=tsplits)
+    if not mle.success:
+      phi_scalar = 10 #increase scale_phi by order of magnitude
+      sphi = sphi * phi_scalar 
+      print('search failed with scale_phi=%d, trying scale_phi=%d...' %(sphi,sphi*phi_scalar))
+      #x0 = mle.x #take where we left off
+      x0[-1] = x0[-1] * phi_scalar #rescale starting guess for phi
+      mle = sparg.find_mle(locations, coal_times, pcoals, shared_times_keep, samples_keep, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=sphi, remove_missing=False, method=method, tsplits=tsplits)
+    if mle.success: 
+      mle.x[-1] = mle.x[-1]/sphi #put back to original scale
+      np.save(output[0], mle)
+    else:
+      print('still failed - try something else!')
+
+# --------------------- get mcle dispersal across loci ----------------------
+
+mcle_pattern = mles_pattern.replace('_locus{locus}', '').replace('_mle', '_mcle')
+if xonly:
+  mcle_pattern = mcle_pattern.replace('dispersal','dispersal_xonly')
+if yonly:
+  mcle_pattern = mcle_pattern.replace('dispersal','dispersal_yonly')
+mcle_results = expand(mcle_pattern, CHR=chromosomes,
+                      twoNe=twoNes, u=us, 
+                      num_iter=num_iters, threshold=thresholds,
+                      tCutoff=tCutoffs,
+                      dCutoff=dCutoffs,
+                      group=groups,
+                      tsplits=mcle_dispersal_tsplits)
+
+rule all_mcles:
+  input:
+    mcle_results
+
+rule mcle:
+  input:
+    expand(trees_pattern, locus=mcle_dispersal_loci, allow_missing=True),
+    location_file,
+    clusters_pattern
+  output:
+    mcle_pattern
+  resources:
+    time = 1 * 60 #with 100 loci per chromosome: 8 hours for 1 epoch, 12 hours for 2 epoch, 16 hours for 3 epochs, 16 hours for 4 epochs (hitting bounds), 1 hour for xonly or yonly
+  threads: 40
+  run:  
+    os.environ["OMP_NUM_THREADS"] = str(threads) 
+    # load processed trees
+    coal_times = []
+    pcoals = []
+    shared_times = []
+    samples = []
+    for locus in range(len(mcle_dispersal_loci)):
+      processed_trees = np.load(input[locus], allow_pickle=True) #find correct input file from expansion
+      coal_times.append(processed_trees['coal_times'][0])
+      pcoals.append(processed_trees['pcoals'][0])
+      shared_times.append(processed_trees['shared_times'][0])
+      samples.append(processed_trees['samples'][0])
+    # determine which samples to keep
+    locations = np.loadtxt(input[-2]) #locations of samples
+    group = str(wildcards.group) #which samples to use
+    clusters = np.load(input[-1], allow_pickle=True) #clusters of nearly identical samples
+    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
+    # filter lists of samples and matrices of shared_times to keep only those samples we want (they are still in the pcoals and coal_times though)
+    samples_keep, shared_times_keep = sparg._filter_samples_times(samples, shared_times, keep)
+    # tsplits and bounds and initial guess
+    tsplits = []
+    for i in (wildcards.tsplits).strip('[]').split(', '):
+      try:
+        tsplits += [float(i)]
+      except:
+        tsplits += []
+    bounds = tuple(bnds[0:3]*(len(tsplits)+1) + [bnds[-1]]) #bounds on parameters
+    x0 = x0s[len(tsplits)] #initial guess
+    sphi = scale_phi
+    outfile = output[0]
+    # sneaky code to try on just one dimension at a time
+    if xonly:
+      locations = locations[:,1] #longitude (x) only
+      x0 = [x0[i*3] for i in range(len(tsplits)+1)] + x0[-1:]
+      bounds = tuple(bnds[:1]*(len(tsplits)+1) + [bnds[-1]])
+    if yonly:
+      locations = locations[:,0] #latitude (y) only
+      x0 = [x0[i*3+1] for i in range(len(tsplits)+1)] + x0[-1:]
+      bounds = tuple(bnds[1:2]*(len(tsplits)+1) + [bnds[-1]])
+    # and find mle dispersal
+    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times_keep, samples_keep, x0=x0, bnds=bounds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=sphi, remove_missing=False, method=method, tsplits=tsplits)
+    if not mle.success:
+      phi_scalar = 10 #increase scale_phi by order of magnitude
+      sphi = sphi * phi_scalar 
+      print('search failed with scale_phi=%d, trying scale_phi=%d...' %(sphi,sphi*phi_scalar))
+      #x0 = mle.x #take where we left off
+      x0[-1] = x0[-1] * phi_scalar #rescale starting guess for phi
+      mle = sparg.find_mle(locations, coal_times, pcoals, shared_times_keep, samples_keep, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=sphi, remove_missing=False, method=method, tsplits=tsplits)
+    if mle.success: 
+      mle.x[-1] = mle.x[-1]/sphi #put back in original scale
+      np.save(output[0], mle)
+    else:
+      print('still failed - try something else!')
+
+# ---------------------------- recent displacements of all samples at a particular time -------------------------------------
+
+displacements_pattern = mcle_pattern.replace('mcle-dispersal', 'time{time}_displacements')
+displacements_weights_pattern = displacements_pattern.replace('displacements','displacement-weights') 
+displacements_results = expand(displacements_pattern, CHR=chromosomes,
+                                    twoNe=twoNes, u=us,
+                                    num_iter=num_iters, threshold=thresholds,
+                                    tCutoff=tCutoffs,
+                                    dCutoff=dCutoffs,
+                                    group=groups,
+                                    time = displacements_times, 
+                                    tsplits = displacements_tsplits)
+
+rule all_displacements:
+  input:
+    displacements_results
+
+rule displacements:
+  input:
+    expand(trees_pattern, locus=displacements_loci, allow_missing=True),
+    mcle_pattern,
+    location_file,
+    clusters_pattern,
+  output:
+    displacements_pattern,
+    displacements_weights_pattern
+  resources:
+    time = 24 * 60 #100 loci: 12+ hours
+  threads: 40
+  run:
+    os.environ["OMP_NUM_THREADS"] = str(threads) 
+    # determine which samples to keep for use in locating
+    locations = np.loadtxt(input[-2]) #locations of samples
+    group = str(wildcards.group) #which samples to use
+    clusters = np.load(input[-1], allow_pickle=True) #clusters of nearly identical samples
+    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
+    # locate ancestors of these nodes
+    nodes = keep 
+    # naive guess for where they are
+    x0 = np.mean(locations[keep], axis=0) #mean location of samples
+    # required files
+    treefiles = [input[i] for i in range(len(displacements_loci))]
+    mlefiles = [input[-3] for _ in range(len(displacements_loci))] #just use same mcle dispersal for all loci
+    # split times
+    tsplits = []
+    for i in (wildcards.tsplits).strip('[]').split(', '):
+      try:
+        tsplits += [float(i)]
+      except:
+        tsplits += []
+    # find mle locations and weights at each locus
+    mles, weights = sparg.locate(treefiles=treefiles, mlefiles=mlefiles, nodes=nodes, locations=locations, keep=keep, x0=x0, bnds=locations_bnds, times=[int(wildcards.time)], weight=True, scale_phi=1, importance=True, tCutoff=int(wildcards.tCutoff), tsplits=tsplits)
+    np.save(output[0], mles)
+    np.save(output[1], weights)
+
+# ---------------------------- locating ancestors of a node at multiple times -------------------------------------
+
+ancestor_locations_pattern = mcle_pattern.replace('mcle-dispersal', 'node{node}_ancestor-locations')
+ancestor_locations_weights_pattern = ancestor_locations_pattern.replace('locations','location-weights') 
+ancestor_locations_results = expand(ancestor_locations_pattern, CHR=chromosomes,
+                              twoNe=twoNes, u=us,
+                              num_iter=num_iters, threshold=thresholds,
+                              tCutoff=tCutoffs,
+                              dCutoff=dCutoffs,
+                              node=ancestor_locations_nodes,
+                              tsplits=ancestor_locations_tsplits,
+                              group=groups)
+
+rule all_ancestor_locations:
+  input:
+    ancestor_locations_results
+
+rule ancestor_locations:
+  input:
+    expand(trees_pattern, locus=ancestor_locations_loci, allow_missing=True), #processed trees
+    location_file, #locations of samples
+    clusters_pattern, #genetic clusters
+    mcle_pattern #mle dispersal rates
+  output:
+    ancestor_locations_pattern,
+    ancestor_locations_weights_pattern
+  resources:
+    time = 60 * 3 # 60 * 2 for 1000 loci at 10 times, 15 for 100 loci at 10 times
+  threads: 40 
+  run:
+    os.environ["OMP_NUM_THREADS"] = str(threads) 
+    # determine which samples to keep
+    locations = np.loadtxt(input[-3]) #locations of samples
+    group = str(wildcards.group) #which samples to use
+    clusters = np.load(input[-2], allow_pickle=True) #clusters of nearly identical samples
+    group = 'Eurasia' #sneaky (stupid) way to include japanese locations but use dispersal estimates without them (make sure this commented out when not locating japanese samples!)
+    print('warning! adding sneaky code to use japanese locations')
+    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
+    # required files
+    treefiles = [input[i] for i in range(len(ancestor_locations_loci))]
+    mlefiles = [input[-1] for _ in range(len(ancestor_locations_loci))]  
+    # nodes we wish to locate
+    nodes = [int(wildcards.node)]
+    # niave guess for where they are
+    #x0 = np.mean(locations[keep], axis=0) #mean location of samples
+    x0 = locations[nodes[0]] #location of focal sample
+    # split times
+    tsplits = []
+    for i in (wildcards.tsplits).strip('[]').split(', '):
+      try:
+        tsplits += [float(i)]
+      except:
+        tsplits += []
+    # find locations
+    mles, weights = sparg.locate(treefiles=treefiles, mlefiles=mlefiles, nodes=nodes, locations=locations, keep=keep, x0=x0, bnds=locations_bnds, times=ancestor_locations_times, weight=True, scale_phi=1, importance=True, tCutoff=int(wildcards.tCutoff), tsplits=tsplits)
+    np.save(output[0], mles)
+    np.save(output[1], weights)
+
+# ---------------------------- locating ancestors of a misplaced node -------------------------------------
+
+misplaced_ancestor_locations_pattern = mcle_pattern.replace('mcle-dispersal', 'node{node}_misplaced-ancestor-locations')
+misplaced_ancestor_locations_weights_pattern = misplaced_ancestor_locations_pattern.replace('locations','location-weights') 
+misplaced_ancestor_locations_results = expand(misplaced_ancestor_locations_pattern, CHR=chromosomes,
+                                    twoNe=twoNes, u=us,
+                                    num_iter=num_iters, threshold=thresholds,
+                                    tCutoff=tCutoffs,
+                                    dCutoff=dCutoffs,
+                                    node = misplaced_nodes,
+                                    tsplits = misplaced_tsplits,
+                                    group=groups)
+
+rule all_misplaced_ancestor_locations:
+  input:
+    misplaced_ancestor_locations_results
+
+rule misplaced_ancestor_locations:
+  input:
+    expand(trees_pattern, locus=misplaced_loci, allow_missing=True),
+    mcle_pattern,
+    location_file,
+    clusters_pattern,
+  output:
+    misplaced_ancestor_locations_pattern,
+    misplaced_ancestor_locations_weights_pattern
+  resources:
+    time = 2 * 60
+  threads: 40
+  run:
+    os.environ["OMP_NUM_THREADS"] = str(threads) 
+    # determine which samples to keep for use in locating
+    locations = np.loadtxt(input[-2]) #locations of samples
+    group = str(wildcards.group) #which samples to use
+    clusters = np.load(input[-1], allow_pickle=True) #clusters of nearly identical samples
+    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
+    # locate ancestors of these nodes
+    nodes = [int(wildcards.node)]
+    # naive guess for where they are
+    #x0 = np.mean(locations[keep], axis=0) #mean location of samples 
+    x0 = locations[nodes[0]] #location of focal sample
+    # misplace the sample
+    locations[int(wildcards.node)] = np.mean(locations[keep], axis=0) #misplace at mean location of samples
+    # required files
+    treefiles = [input[i] for i in range(len(misplaced_loci))]
+    mlefiles = [input[-3] for _ in range(len(misplaced_loci))]  
+    # split times
+    tsplits = []
+    for i in (wildcards.tsplits).strip('[]').split(', '):
+      try:
+        tsplits += [float(i)]
+      except:
+        tsplits += []
+    # find mle locations and weights at each locus
+    mles, weights = sparg.locate(treefiles=treefiles, mlefiles=mlefiles, nodes=nodes, locations=locations, keep=keep, x0=x0, bnds=locations_bnds, times=misplaced_times, weight=True, scale_phi=1, importance=True, tCutoff=int(wildcards.tCutoff), tsplits=tsplits)
+    np.save(output[0], mles)
+    np.save(output[1], weights)
