@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017) (preloaded format=pdflatex 2017.5.23)  13 JUL 2021 13:08
+This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017) (preloaded format=pdflatex 2017.5.23)  14 JUL 2021 00:01
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -744,20 +744,20 @@ Package: ccaption 2011/08/07 v3.2c Extended captioning and new floats
 ) (./ms.aux)
 \openout1 = `ms.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 41.
-LaTeX Font Info:    ... okay on input line 41.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 41.
-LaTeX Font Info:    ... okay on input line 41.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 41.
-LaTeX Font Info:    ... okay on input line 41.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 41.
-LaTeX Font Info:    ... okay on input line 41.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 41.
-LaTeX Font Info:    ... okay on input line 41.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 41.
-LaTeX Font Info:    ... okay on input line 41.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 41.
-LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 38.
+LaTeX Font Info:    ... okay on input line 38.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 38.
+LaTeX Font Info:    ... okay on input line 38.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 38.
+LaTeX Font Info:    ... okay on input line 38.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 38.
+LaTeX Font Info:    ... okay on input line 38.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 38.
+LaTeX Font Info:    ... okay on input line 38.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 38.
+LaTeX Font Info:    ... okay on input line 38.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 38.
+LaTeX Font Info:    ... okay on input line 38.
 (/usr/local/texlive/2017/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
 \scratchcounter=\count145
@@ -789,7 +789,7 @@ File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
 \AtBeginShipoutBox=\box41
-Package hyperref Info: Link coloring ON on input line 41.
+Package hyperref Info: Link coloring ON on input line 38.
 
 (/usr/local/texlive/2017/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
@@ -799,9 +799,9 @@ Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
 )
 \c@section@level=\count151
 )
-LaTeX Info: Redefining \ref on input line 41.
-LaTeX Info: Redefining \pageref on input line 41.
-LaTeX Info: Redefining \nameref on input line 41.
+LaTeX Info: Redefining \ref on input line 38.
+LaTeX Info: Redefining \pageref on input line 38.
+LaTeX Info: Redefining \nameref on input line 38.
 
 (./ms.out) (./ms.out)
 \@outlinefile=\write4
@@ -811,11 +811,11 @@ LaTeX Info: Redefining \nameref on input line 41.
 Package pgfplots notification 'compat/show suggested version=true': document ha
 s been generated with the most recent feature set (\pgfplotsset{compat=1.14}).
 
-LaTeX Font Info:    Try loading font information for U+msa on input line 50.
+LaTeX Font Info:    Try loading font information for U+msa on input line 47.
 (/usr/local/texlive/2017/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 50.
+LaTeX Font Info:    Try loading font information for U+msb on input line 47.
 
 (/usr/local/texlive/2017/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
@@ -831,14 +831,14 @@ LaTeX Warning: Text page 4 contains only floats.
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.522 
+l.519 
       ] [6] [7]
 <plots/sim_sigmax_5numiter_100tCutoff.pdf, id=174, 361.35pt x 361.35pt>
 File: plots/sim_sigmax_5numiter_100tCutoff.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmax_5numiter_100tCutoff.pdf>
 Package pdftex.def Info: plots/sim_sigmax_5numiter_100tCutoff.pdf used on input
- line 582.
+ line 579.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
 <plots/sim_2epoch_mcles_tsplits[0.25, 0.5].pdf, id=176, 361.35pt x 361.35pt>
@@ -846,7 +846,7 @@ File: plots/sim_2epoch_mcles_tsplits[0.25, 0.5].pdf Graphic file (type pdf)
 
 <use plots/sim_2epoch_mcles_tsplits[0.25, 0.5].pdf>
 Package pdftex.def Info: plots/sim_2epoch_mcles_tsplits[0.25, 0.5].pdf used on 
-input line 590.
+input line 587.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
 <plots/sim_2epoch_mcles_tsplits[0.5, 0.25].pdf, id=178, 361.35pt x 361.35pt>
@@ -854,14 +854,14 @@ File: plots/sim_2epoch_mcles_tsplits[0.5, 0.25].pdf Graphic file (type pdf)
 
 <use plots/sim_2epoch_mcles_tsplits[0.5, 0.25].pdf>
 Package pdftex.def Info: plots/sim_2epoch_mcles_tsplits[0.5, 0.25].pdf used on 
-input line 598.
+input line 595.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
 <plots/rmse_5numiter.pdf, id=180, 433.62pt x 289.08pt>
 File: plots/rmse_5numiter.pdf Graphic file (type pdf)
 
 <use plots/rmse_5numiter.pdf>
-Package pdftex.def Info: plots/rmse_5numiter.pdf used on input line 606.
+Package pdftex.def Info: plots/rmse_5numiter.pdf used on input line 603.
 (pdftex.def)             Requested size: 139.04742pt x 97.5pt.
 
 <plots/CIs-coalesce-true_trees_time200.pdf, id=182, 433.62pt x 289.08pt>
@@ -869,7 +869,7 @@ File: plots/CIs-coalesce-true_trees_time200.pdf Graphic file (type pdf)
 
 <use plots/CIs-coalesce-true_trees_time200.pdf>
 Package pdftex.def Info: plots/CIs-coalesce-true_trees_time200.pdf used on inpu
-t line 614.
+t line 611.
 (pdftex.def)             Requested size: 122.25426pt x 97.5pt.
 
 <plots/CIs-coalesce-true_trees_time300.pdf, id=184, 433.62pt x 289.08pt>
@@ -877,7 +877,7 @@ File: plots/CIs-coalesce-true_trees_time300.pdf Graphic file (type pdf)
 
 <use plots/CIs-coalesce-true_trees_time300.pdf>
 Package pdftex.def Info: plots/CIs-coalesce-true_trees_time300.pdf used on inpu
-t line 617.
+t line 614.
 (pdftex.def)             Requested size: 112.65816pt x 97.5pt.
 
 <plots/CIs-coalesce-true_trees_time400.pdf, id=186, 433.62pt x 289.08pt>
@@ -885,14 +885,14 @@ File: plots/CIs-coalesce-true_trees_time400.pdf Graphic file (type pdf)
 
 <use plots/CIs-coalesce-true_trees_time400.pdf>
 Package pdftex.def Info: plots/CIs-coalesce-true_trees_time400.pdf used on inpu
-t line 620.
+t line 617.
 (pdftex.def)             Requested size: 112.65816pt x 97.5pt.
 
 <plots/rmse_mean_5numiter.pdf, id=188, 433.62pt x 289.08pt>
 File: plots/rmse_mean_5numiter.pdf Graphic file (type pdf)
 
 <use plots/rmse_mean_5numiter.pdf>
-Package pdftex.def Info: plots/rmse_mean_5numiter.pdf used on input line 628.
+Package pdftex.def Info: plots/rmse_mean_5numiter.pdf used on input line 625.
 (pdftex.def)             Requested size: 139.04742pt x 97.5pt.
 
 <plots/BLUPs-coalesce-true_trees_time200.pdf, id=190, 433.62pt x 289.08pt>
@@ -900,7 +900,7 @@ File: plots/BLUPs-coalesce-true_trees_time200.pdf Graphic file (type pdf)
 
 <use plots/BLUPs-coalesce-true_trees_time200.pdf>
 Package pdftex.def Info: plots/BLUPs-coalesce-true_trees_time200.pdf used on in
-put line 636.
+put line 633.
 (pdftex.def)             Requested size: 122.25426pt x 97.5pt.
 
 <plots/BLUPs-coalesce-true_trees_time300.pdf, id=192, 433.62pt x 289.08pt>
@@ -908,7 +908,7 @@ File: plots/BLUPs-coalesce-true_trees_time300.pdf Graphic file (type pdf)
 
 <use plots/BLUPs-coalesce-true_trees_time300.pdf>
 Package pdftex.def Info: plots/BLUPs-coalesce-true_trees_time300.pdf used on in
-put line 639.
+put line 636.
 (pdftex.def)             Requested size: 112.65816pt x 97.5pt.
 
 <plots/BLUPs-coalesce-true_trees_time400.pdf, id=194, 433.62pt x 289.08pt>
@@ -916,10 +916,10 @@ File: plots/BLUPs-coalesce-true_trees_time400.pdf Graphic file (type pdf)
 
 <use plots/BLUPs-coalesce-true_trees_time400.pdf>
 Package pdftex.def Info: plots/BLUPs-coalesce-true_trees_time400.pdf used on in
-put line 642.
+put line 639.
 (pdftex.def)             Requested size: 112.65816pt x 97.5pt.
 
-Overfull \hbox (29.56291pt too wide) in paragraph at lines 648--649
+Overfull \hbox (29.56291pt too wide) in paragraph at lines 645--646
  [] 
  []
 
@@ -934,30 +934,30 @@ ifier (name{figure.2}) has been already used, duplicate ignored
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.707 
+l.704 
       ] [11] [12] [13]
 <plots/1001G_tCutoff10000_tsplits[]_groupEurasia-no-Japan_mle-dispersal.pdf, id
-=673, 1059.32323pt x 338.55547pt>
+=674, 1059.32323pt x 338.55547pt>
 File: plots/1001G_tCutoff10000_tsplits[]_groupEurasia-no-Japan_mle-dispersal.pd
 f Graphic file (type pdf)
 
 <use plots/1001G_tCutoff10000_tsplits[]_groupEurasia-no-Japan_mle-dispersal.pdf
 >
 Package pdftex.def Info: plots/1001G_tCutoff10000_tsplits[]_groupEurasia-no-Jap
-an_mle-dispersal.pdf used on input line 781.
+an_mle-dispersal.pdf used on input line 778.
 (pdftex.def)             Requested size: 390.0pt x 124.63847pt.
 
-<plots/1001G_tCutoff10000_groupEurasia-no-Japan_mcle-dispersal.pdf, id=674, 891
+<plots/1001G_tCutoff10000_groupEurasia-no-Japan_mcle-dispersal.pdf, id=675, 891
 .59662pt x 307.0625pt>
 File: plots/1001G_tCutoff10000_groupEurasia-no-Japan_mcle-dispersal.pdf Graphic
  file (type pdf)
 
 <use plots/1001G_tCutoff10000_groupEurasia-no-Japan_mcle-dispersal.pdf>
 Package pdftex.def Info: plots/1001G_tCutoff10000_groupEurasia-no-Japan_mcle-di
-spersal.pdf used on input line 788.
+spersal.pdf used on input line 785.
 (pdftex.def)             Requested size: 390.0pt x 134.31139pt.
 
-Overfull \hbox (7.8324pt too wide) in paragraph at lines 794--795
+Overfull \hbox (7.8324pt too wide) in paragraph at lines 791--792
  [] 
  []
 
@@ -968,25 +968,25 @@ pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./plots/1001G_tCutoff10000_g
 roupEurasia-no-Japan_mcle-dispersal.pdf): PDF inclusion: multiple pdfs with pag
 e group included in a single page
 >] [16]
-<plots/1001G_mean_displacements_time10_highlights.pdf, id=797, 701.01903pt x 34
+<plots/1001G_mean_displacements_time10_highlights.pdf, id=798, 701.01903pt x 34
 4.19423pt>
 File: plots/1001G_mean_displacements_time10_highlights.pdf Graphic file (type p
 df)
  <use plots/1001G_mean_displacements_time10_highlights.pdf>
 Package pdftex.def Info: plots/1001G_mean_displacements_time10_highlights.pdf u
-sed on input line 852.
+sed on input line 849.
 (pdftex.def)             Requested size: 390.0pt x 191.48697pt.
 
-<plots/1001G_mean_displacements_time100_highlights.pdf, id=798, 701.01903pt x 3
+<plots/1001G_mean_displacements_time100_highlights.pdf, id=799, 701.01903pt x 3
 44.19423pt>
 File: plots/1001G_mean_displacements_time100_highlights.pdf Graphic file (type 
 pdf)
  <use plots/1001G_mean_displacements_time100_highlights.pdf>
 Package pdftex.def Info: plots/1001G_mean_displacements_time100_highlights.pdf 
-used on input line 859.
+used on input line 856.
 (pdftex.def)             Requested size: 390.0pt x 191.48697pt.
 
-Overfull \hbox (7.8324pt too wide) in paragraph at lines 865--866
+Overfull \hbox (7.8324pt too wide) in paragraph at lines 862--863
  [] 
  []
 
@@ -1002,61 +1002,61 @@ ents_time100_highlights.pdf): PDF inclusion: multiple pdfs with page group incl
 uded in a single page
 >]
 <plots/1001G_ancestor-location-density-map_node431_time1_tsplits[10,100,1000].p
-ng, id=895, 577.357pt x 132.495pt>
+ng, id=896, 577.357pt x 132.495pt>
 File: plots/1001G_ancestor-location-density-map_node431_time1_tsplits[10,100,10
 00].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node431_time1_tsplits[10,100,100
 0].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node431_time
-1_tsplits[10,100,1000].png used on input line 908.
+1_tsplits[10,100,1000].png used on input line 905.
 (pdftex.def)             Requested size: 390.0pt x 89.501pt.
 
 <plots/1001G_ancestor-location-density-map_node431_time10_tsplits[10,100,1000].
-png, id=897, 577.357pt x 132.495pt>
+png, id=898, 577.357pt x 132.495pt>
 File: plots/1001G_ancestor-location-density-map_node431_time10_tsplits[10,100,1
 000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node431_time10_tsplits[10,100,10
 00].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node431_time
-10_tsplits[10,100,1000].png used on input line 911.
+10_tsplits[10,100,1000].png used on input line 908.
 (pdftex.def)             Requested size: 390.0pt x 89.501pt.
 
 <plots/1001G_ancestor-location-density-map_node431_time100_tsplits[10,100,1000]
-.png, id=898, 577.357pt x 132.495pt>
+.png, id=899, 577.357pt x 132.495pt>
 File: plots/1001G_ancestor-location-density-map_node431_time100_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node431_time100_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node431_time
-100_tsplits[10,100,1000].png used on input line 914.
+100_tsplits[10,100,1000].png used on input line 911.
 (pdftex.def)             Requested size: 390.0pt x 89.501pt.
 
 <plots/1001G_misplaced-ancestor-location-density-map_node697_time1_tsplits[10,1
-00,1000].png, id=899, 577.357pt x 353.32pt>
+00,1000].png, id=900, 577.357pt x 353.32pt>
 File: plots/1001G_misplaced-ancestor-location-density-map_node697_time1_tsplits
 [10,100,1000].png Graphic file (type png)
 
 <use plots/1001G_misplaced-ancestor-location-density-map_node697_time1_tsplits[
 10,100,1000].png>
 Package pdftex.def Info: plots/1001G_misplaced-ancestor-location-density-map_no
-de697_time1_tsplits[10,100,1000].png used on input line 923.
+de697_time1_tsplits[10,100,1000].png used on input line 920.
 (pdftex.def)             Requested size: 195.0pt x 119.3347pt.
 
 <plots/1001G_misplaced-ancestor-location-density-map_node697_time10_tsplits[10,
-100,1000].png, id=900, 577.357pt x 353.32pt>
+100,1000].png, id=901, 577.357pt x 353.32pt>
 File: plots/1001G_misplaced-ancestor-location-density-map_node697_time10_tsplit
 s[10,100,1000].png Graphic file (type png)
 
 <use plots/1001G_misplaced-ancestor-location-density-map_node697_time10_tsplits
 [10,100,1000].png>
 Package pdftex.def Info: plots/1001G_misplaced-ancestor-location-density-map_no
-de697_time10_tsplits[10,100,1000].png used on input line 926.
+de697_time10_tsplits[10,100,1000].png used on input line 923.
 (pdftex.def)             Requested size: 195.0pt x 119.3347pt.
 
-Overfull \hbox (26.36983pt too wide) in paragraph at lines 932--933
+Overfull \hbox (26.36983pt too wide) in paragraph at lines 929--930
  [] 
  []
 
@@ -1066,16 +1066,16 @@ its[10,100,1000].png> <./plots/1001G_ancestor-location-density-map_node431_time
 100_tsplits[10,100,1000].png> <./plots/1001G_misplaced-ancestor-location-densit
 y-map_node697_time1_tsplits[10,100,1000].png> <./plots/1001G_misplaced-ancestor
 -location-density-map_node697_time10_tsplits[10,100,1000].png>]
-<plots/1001G_NA-locations_tsplits[10,100,1000].png, id=936, 697.4055pt x 783.32
+<plots/1001G_NA-locations_tsplits[10,100,1000].png, id=937, 697.4055pt x 783.32
 65pt>
 File: plots/1001G_NA-locations_tsplits[10,100,1000].png Graphic file (type png)
 
  <use plots/1001G_NA-locations_tsplits[10,100,1000].png>
 Package pdftex.def Info: plots/1001G_NA-locations_tsplits[10,100,1000].png used
- on input line 982.
+ on input line 979.
 (pdftex.def)             Requested size: 390.0pt x 438.06223pt.
 
-Overfull \hbox (7.8324pt too wide) in paragraph at lines 985--986
+Overfull \hbox (7.8324pt too wide) in paragraph at lines 982--983
  [] 
  []
 
@@ -1084,161 +1084,161 @@ Overfull \hbox (7.8324pt too wide) in paragraph at lines 985--986
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.1006 
+l.1003 
        ] [22 <./plots/1001G_NA-locations_tsplits[10,100,1000].png>]
 <plots/1001G_ancestor-location-density-map_node338_time10_tsplits[10,100,1000].
-png, id=964, 577.357pt x 353.32pt>
+png, id=965, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node338_time10_tsplits[10,100,1
 000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node338_time10_tsplits[10,100,10
 00].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node338_time
-10_tsplits[10,100,1000].png used on input line 1024.
+10_tsplits[10,100,1000].png used on input line 1021.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node694_time10_tsplits[10,100,1000].
-png, id=965, 577.357pt x 353.32pt>
+png, id=966, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node694_time10_tsplits[10,100,1
 000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node694_time10_tsplits[10,100,10
 00].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node694_time
-10_tsplits[10,100,1000].png used on input line 1025.
+10_tsplits[10,100,1000].png used on input line 1022.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node697_time10_tsplits[10,100,1000].
-png, id=966, 577.357pt x 353.32pt>
+png, id=967, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node697_time10_tsplits[10,100,1
 000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node697_time10_tsplits[10,100,10
 00].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node697_time
-10_tsplits[10,100,1000].png used on input line 1026.
+10_tsplits[10,100,1000].png used on input line 1023.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node338_time100_tsplits[10,100,1000]
-.png, id=967, 577.357pt x 353.32pt>
+.png, id=968, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node338_time100_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node338_time100_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node338_time
-100_tsplits[10,100,1000].png used on input line 1029.
+100_tsplits[10,100,1000].png used on input line 1026.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node694_time100_tsplits[10,100,1000]
-.png, id=968, 577.357pt x 353.32pt>
+.png, id=969, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node694_time100_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node694_time100_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node694_time
-100_tsplits[10,100,1000].png used on input line 1030.
+100_tsplits[10,100,1000].png used on input line 1027.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node697_time100_tsplits[10,100,1000]
-.png, id=969, 577.357pt x 353.32pt>
+.png, id=970, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node697_time100_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node697_time100_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node697_time
-100_tsplits[10,100,1000].png used on input line 1031.
+100_tsplits[10,100,1000].png used on input line 1028.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node338_time215_tsplits[10,100,1000]
-.png, id=970, 577.357pt x 353.32pt>
+.png, id=971, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node338_time215_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node338_time215_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node338_time
-215_tsplits[10,100,1000].png used on input line 1034.
+215_tsplits[10,100,1000].png used on input line 1031.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node694_time215_tsplits[10,100,1000]
-.png, id=971, 577.357pt x 353.32pt>
+.png, id=972, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node694_time215_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node694_time215_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node694_time
-215_tsplits[10,100,1000].png used on input line 1035.
+215_tsplits[10,100,1000].png used on input line 1032.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node697_time215_tsplits[10,100,1000]
-.png, id=972, 577.357pt x 353.32pt>
+.png, id=973, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node697_time215_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node697_time215_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node697_time
-215_tsplits[10,100,1000].png used on input line 1036.
+215_tsplits[10,100,1000].png used on input line 1033.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node338_time464_tsplits[10,100,1000]
-.png, id=973, 577.357pt x 353.32pt>
+.png, id=974, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node338_time464_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node338_time464_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node338_time
-464_tsplits[10,100,1000].png used on input line 1039.
+464_tsplits[10,100,1000].png used on input line 1036.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node694_time464_tsplits[10,100,1000]
-.png, id=974, 577.357pt x 353.32pt>
+.png, id=975, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node694_time464_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node694_time464_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node694_time
-464_tsplits[10,100,1000].png used on input line 1040.
+464_tsplits[10,100,1000].png used on input line 1037.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
 <plots/1001G_ancestor-location-density-map_node697_time464_tsplits[10,100,1000]
-.png, id=975, 577.357pt x 353.32pt>
+.png, id=976, 577.357pt x 353.32pt>
 File: plots/1001G_ancestor-location-density-map_node697_time464_tsplits[10,100,
 1000].png Graphic file (type png)
 
 <use plots/1001G_ancestor-location-density-map_node697_time464_tsplits[10,100,1
 000].png>
 Package pdftex.def Info: plots/1001G_ancestor-location-density-map_node697_time
-464_tsplits[10,100,1000].png used on input line 1041.
+464_tsplits[10,100,1000].png used on input line 1038.
 (pdftex.def)             Requested size: 128.70071pt x 78.76036pt.
 
-Overfull \hbox (20.4769pt too wide) in paragraph at lines 1055--1056
+Overfull \hbox (20.4769pt too wide) in paragraph at lines 1052--1053
  [] 
  []
 
-<plots/1001G_spanish-moves_time10.pdf, id=979, 516.40866pt x 534.91531pt>
+<plots/1001G_spanish-moves_time10.pdf, id=980, 516.40866pt x 534.91531pt>
 File: plots/1001G_spanish-moves_time10.pdf Graphic file (type pdf)
 
 <use plots/1001G_spanish-moves_time10.pdf>
 Package pdftex.def Info: plots/1001G_spanish-moves_time10.pdf used on input lin
-e 1085.
+e 1082.
 (pdftex.def)             Requested size: 195.0pt x 201.98846pt.
 
-<plots/1001G_spanish-moves_time100.pdf, id=980, 532.37457pt x 534.91531pt>
+<plots/1001G_spanish-moves_time100.pdf, id=981, 532.37457pt x 534.91531pt>
 File: plots/1001G_spanish-moves_time100.pdf Graphic file (type pdf)
 
 <use plots/1001G_spanish-moves_time100.pdf>
 Package pdftex.def Info: plots/1001G_spanish-moves_time100.pdf used on input li
-ne 1093.
+ne 1090.
 (pdftex.def)             Requested size: 195.0pt x 195.93216pt.
 
-Overfull \hbox (16.06479pt too wide) in paragraph at lines 1100--1101
+Overfull \hbox (16.06479pt too wide) in paragraph at lines 1097--1098
  [] 
  []
 
@@ -1247,7 +1247,7 @@ Overfull \hbox (16.06479pt too wide) in paragraph at lines 1100--1101
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.1120 
+l.1117 
        ] [24 <./plots/1001G_ancestor-location-density-map_node338_time10_tsplit
 s[10,100,1000].png> <./plots/1001G_ancestor-location-density-map_node694_time10
 _tsplits[10,100,1000].png> <./plots/1001G_ancestor-location-density-map_node697
@@ -1268,43 +1268,39 @@ pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./plots/1001G_spanish-moves_
 time100.pdf): PDF inclusion: multiple pdfs with page group included in a single
  page
 >]
-<plots/1001G_windrose_admixed_weighted.pdf, id=1097, 1080.0187pt x 414.24077pt>
+<plots/1001G_windrose_admixed_weighted.pdf, id=1098, 1080.0187pt x 414.24077pt>
 File: plots/1001G_windrose_admixed_weighted.pdf Graphic file (type pdf)
 <use plots/1001G_windrose_admixed_weighted.pdf>
 Package pdftex.def Info: plots/1001G_windrose_admixed_weighted.pdf used on inpu
-t line 1144.
+t line 1141.
 (pdftex.def)             Requested size: 390.0pt x 149.58165pt.
 
 <plots/1001G_genome-displacements_tsplits[10,100,1000]_node1044_time10.pdf, id=
-1098, 701.01903pt x 86.74231pt>
+1099, 701.01903pt x 86.74231pt>
 File: plots/1001G_genome-displacements_tsplits[10,100,1000]_node1044_time10.pdf
  Graphic file (type pdf)
 
 <use plots/1001G_genome-displacements_tsplits[10,100,1000]_node1044_time10.pdf>
 Package pdftex.def Info: plots/1001G_genome-displacements_tsplits[10,100,1000]_
-node1044_time10.pdf used on input line 1152.
+node1044_time10.pdf used on input line 1149.
 (pdftex.def)             Requested size: 390.0pt x 48.25769pt.
 
 <plots/1001G_genome-displacements_tsplits[10,100,1000]_node881_time10.pdf, id=1
-099, 701.01903pt x 119.12462pt>
+100, 701.01903pt x 119.12462pt>
 File: plots/1001G_genome-displacements_tsplits[10,100,1000]_node881_time10.pdf 
 Graphic file (type pdf)
 
 <use plots/1001G_genome-displacements_tsplits[10,100,1000]_node881_time10.pdf>
 Package pdftex.def Info: plots/1001G_genome-displacements_tsplits[10,100,1000]_
-node881_time10.pdf used on input line 1158.
+node881_time10.pdf used on input line 1155.
 (pdftex.def)             Requested size: 390.0pt x 66.27307pt.
 
-Overfull \hbox (7.8324pt too wide) in paragraph at lines 1168--1169
+Overfull \hbox (7.8324pt too wide) in paragraph at lines 1165--1166
  [] 
  []
 
-[26]
-Overfull \vbox (35.54292pt too high) has occurred while \output is active []
-
-
-[27 <./plots/1001G_windrose_admixed_weighted.pdf> <./plots/1001G_genome-displac
-ements_tsplits[10,100,1000]_node1044_time10.pdf
+[26] [27 <./plots/1001G_windrose_admixed_weighted.pdf> <./plots/1001G_genome-di
+splacements_tsplits[10,100,1000]_node1044_time10.pdf
 
 pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./plots/1001G_genome-displac
 ements_tsplits[10,100,1000]_node1044_time10.pdf): PDF inclusion: multiple pdfs 
@@ -1314,63 +1310,65 @@ with page group included in a single page
 pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./plots/1001G_genome-displac
 ements_tsplits[10,100,1000]_node881_time10.pdf): PDF inclusion: multiple pdfs w
 ith page group included in a single page
->] [28] [29] [30] [31] [32] [33]
-Overfull \hbox (4.76262pt too wide) in paragraph at lines 1373--1376
+>] [28
+
+] [29] [30] [31] [32] [33]
+Overfull \hbox (4.76262pt too wide) in paragraph at lines 1372--1375
 \OT1/cmr/m/n/12 where $\U/msb/m/n/12 P\OT1/cmr/m/n/12 (\OMS/cmsy/m/n/12 G\OML/c
 mm/m/it/12 ; \OMS/cmsy/m/n/12 Tj\OT1/cmr/bx/n/12 H\OML/cmm/m/it/12 ; []\OT1/cmr
 /m/n/12 )$ is the dis-tri-bu-tion of topolo-gies and branch lengths
  []
 
 [34] [35] [36] [37] [38] [39]
-Overfull \hbox (4.80122pt too wide) in paragraph at lines 1549--1549
+Overfull \hbox (4.80122pt too wide) in paragraph at lines 1548--1548
 [][]\OT1/cmr/bx/n/14.4 Maximum like-li-hood es-ti-mates of the dis-per-sal rate
  given
  []
 
 [40] [41] [42] [43]
-Overfull \hbox (37.48814pt too wide) in paragraph at lines 1669--1671
+Overfull \hbox (37.48814pt too wide) in paragraph at lines 1668--1670
 \OT1/cmtt/m/n/12 pyslim \OT1/cmr/m/n/12 spa-tial vi-gnette ([][]$\OT1/cmtt/m/n/
 12 https : / / pyslim . readthedocs . io / en / latest / vignette _
  []
 
 [44]
-Overfull \hbox (19.55748pt too wide) in paragraph at lines 1702--1705
+Overfull \hbox (19.55748pt too wide) in paragraph at lines 1701--1704
 \OT1/cmr/m/n/12 nal pop-u-la-tion. When sim-pli-fy-ing the tree se-quence we us
 e the \OT1/cmtt/m/n/12 keep[]unary$\OT1/cmr/m/n/12 =$\OT1/cmtt/m/n/12 True
  []
 
 [45] [46]
-Overfull \hbox (14.3284pt too wide) in paragraph at lines 1734--1745
+Overfull \hbox (14.3284pt too wide) in paragraph at lines 1733--1744
 \OT1/cmr/m/n/12 als from [][]$\OT1/cmtt/m/n/12 https : / / 1001genomes . org / 
 data / GMI-[]MPI / releases / v3 . 1/$[][] \OT1/cmr/m/n/12 ([][]Alonso-
  []
 
 
-Overfull \hbox (4.98425pt too wide) in paragraph at lines 1734--1745
+Overfull \hbox (4.98425pt too wide) in paragraph at lines 1733--1744
 \OT1/cmtt/m/n/12 org / data / GMI-[]MPI / releases / v3 . 1 / SNP _ matrix _ im
 puted _ hdf5$[][]\OT1/cmr/m/n/12 ) into a hap-
  []
 
 [47]
-Overfull \hbox (31.63742pt too wide) in paragraph at lines 1755--1757
+Overfull \hbox (31.63742pt too wide) in paragraph at lines 1754--1756
 \OT1/cmr/m/n/12 from [][]$\OT1/cmtt/m/n/12 https : / / raw . githubusercontent 
 . com / hagax8 / arabidopsis _ viz / master /
  []
 
 
-Overfull \hbox (21.45525pt too wide) in paragraph at lines 1755--1757
+Overfull \hbox (21.45525pt too wide) in paragraph at lines 1754--1756
 \OT1/cmtt/m/n/12 data / dataframe _ 1001G . csv$[][] \OT1/cmr/m/n/12 (see also 
 [][]$\OT1/cmtt/m/n/12 https : / / 1001genomes . org / accessions .
  []
 
 
-Overfull \hbox (46.98593pt too wide) in paragraph at lines 1755--1757
+Overfull \hbox (46.98593pt too wide) in paragraph at lines 1754--1756
 \OT1/cmr/m/n/12 ([][]Alonso-Blanco et al.[][], [][]2016[][]) (see [][]$\OT1/cmt
 t/m/n/12 https : / / 1001genomes . github . io / admixture-[]map/$[][]
  []
 
 
-Overfull \hbox (12.17155pt too wide) in paragraph at lines 1763--1764
+Overfull \hbox (12.17155pt too wide) in paragraph at lines 1762--1763
 \OT1/cmr/m/n/12 grees to kilo-me-tres by mul-ti-ply-ing the lat-i-tu-di-nal es-
 ti-mates by $[](\OML/cmm/m/it/12 x^^Y=\OT1/cmr/m/n/12 180)\OML/cmm/m/it/12 =\OT
 1/cmr/m/n/12 111$,
@@ -1415,73 +1413,73 @@ File: plots/sim_sigmax_5numiter_100tCutoff.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmax_5numiter_100tCutoff.pdf>
 Package pdftex.def Info: plots/sim_sigmax_5numiter_100tCutoff.pdf used on input
- line 1847.
+ line 1846.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_sigmay_5numiter_100tCutoff.pdf, id=1622, 361.35pt x 361.35pt>
+<plots/sim_sigmay_5numiter_100tCutoff.pdf, id=1626, 361.35pt x 361.35pt>
 File: plots/sim_sigmay_5numiter_100tCutoff.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmay_5numiter_100tCutoff.pdf>
 Package pdftex.def Info: plots/sim_sigmay_5numiter_100tCutoff.pdf used on input
- line 1855.
+ line 1854.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_rho_5numiter_100tCutoff.pdf, id=1624, 361.35pt x 361.35pt>
+<plots/sim_rho_5numiter_100tCutoff.pdf, id=1628, 361.35pt x 361.35pt>
 File: plots/sim_rho_5numiter_100tCutoff.pdf Graphic file (type pdf)
 
 <use plots/sim_rho_5numiter_100tCutoff.pdf>
 Package pdftex.def Info: plots/sim_rho_5numiter_100tCutoff.pdf used on input li
-ne 1858.
+ne 1857.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_sigmax_5numiter_1000tCutoff.pdf, id=1626, 361.35pt x 361.35pt>
+<plots/sim_sigmax_5numiter_1000tCutoff.pdf, id=1630, 361.35pt x 361.35pt>
 File: plots/sim_sigmax_5numiter_1000tCutoff.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmax_5numiter_1000tCutoff.pdf>
 Package pdftex.def Info: plots/sim_sigmax_5numiter_1000tCutoff.pdf used on inpu
-t line 1863.
+t line 1862.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_sigmay_5numiter_1000tCutoff.pdf, id=1628, 361.35pt x 361.35pt>
+<plots/sim_sigmay_5numiter_1000tCutoff.pdf, id=1632, 361.35pt x 361.35pt>
 File: plots/sim_sigmay_5numiter_1000tCutoff.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmay_5numiter_1000tCutoff.pdf>
 Package pdftex.def Info: plots/sim_sigmay_5numiter_1000tCutoff.pdf used on inpu
-t line 1871.
+t line 1870.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_rho_5numiter_1000tCutoff.pdf, id=1630, 361.35pt x 361.35pt>
+<plots/sim_rho_5numiter_1000tCutoff.pdf, id=1634, 361.35pt x 361.35pt>
 File: plots/sim_rho_5numiter_1000tCutoff.pdf Graphic file (type pdf)
 
 <use plots/sim_rho_5numiter_1000tCutoff.pdf>
 Package pdftex.def Info: plots/sim_rho_5numiter_1000tCutoff.pdf used on input l
-ine 1874.
+ine 1873.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_sigmax_5numiter.pdf, id=1632, 361.35pt x 361.35pt>
+<plots/sim_sigmax_5numiter.pdf, id=1636, 361.35pt x 361.35pt>
 File: plots/sim_sigmax_5numiter.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmax_5numiter.pdf>
-Package pdftex.def Info: plots/sim_sigmax_5numiter.pdf used on input line 1879.
+Package pdftex.def Info: plots/sim_sigmax_5numiter.pdf used on input line 1878.
 
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_sigmay_5numiter.pdf, id=1634, 361.35pt x 361.35pt>
+<plots/sim_sigmay_5numiter.pdf, id=1638, 361.35pt x 361.35pt>
 File: plots/sim_sigmay_5numiter.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmay_5numiter.pdf>
-Package pdftex.def Info: plots/sim_sigmay_5numiter.pdf used on input line 1887.
+Package pdftex.def Info: plots/sim_sigmay_5numiter.pdf used on input line 1886.
 
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_rho_5numiter.pdf, id=1636, 361.35pt x 361.35pt>
+<plots/sim_rho_5numiter.pdf, id=1640, 361.35pt x 361.35pt>
 File: plots/sim_rho_5numiter.pdf Graphic file (type pdf)
 
 <use plots/sim_rho_5numiter.pdf>
-Package pdftex.def Info: plots/sim_rho_5numiter.pdf used on input line 1890.
+Package pdftex.def Info: plots/sim_rho_5numiter.pdf used on input line 1889.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-Overfull \hbox (8.70831pt too wide) in paragraph at lines 1893--1894
+Overfull \hbox (8.70831pt too wide) in paragraph at lines 1892--1893
  [] 
  []
 
@@ -1489,219 +1487,219 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) ha
 s been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.1903 }
+l.1902 }
         pdfTeX warning (ext4): destination with the same identifier (name{figur
 e.1}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.1903 }
+l.1902 }
         
 
-LaTeX Warning: Float too large for page by 7.71033pt on input line 1906.
+LaTeX Warning: Float too large for page by 7.71033pt on input line 1905.
 
 
-<plots/sim_sigmax_5numiter_100tCutoff_unimp.pdf, id=1640, 361.35pt x 361.35pt>
+<plots/sim_sigmax_5numiter_100tCutoff_unimp.pdf, id=1644, 361.35pt x 361.35pt>
 File: plots/sim_sigmax_5numiter_100tCutoff_unimp.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmax_5numiter_100tCutoff_unimp.pdf>
 Package pdftex.def Info: plots/sim_sigmax_5numiter_100tCutoff_unimp.pdf used on
- input line 1922.
+ input line 1921.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_sigmay_5numiter_100tCutoff_unimp.pdf, id=1642, 361.35pt x 361.35pt>
+<plots/sim_sigmay_5numiter_100tCutoff_unimp.pdf, id=1646, 361.35pt x 361.35pt>
 File: plots/sim_sigmay_5numiter_100tCutoff_unimp.pdf Graphic file (type pdf)
 
 <use plots/sim_sigmay_5numiter_100tCutoff_unimp.pdf>
 Package pdftex.def Info: plots/sim_sigmay_5numiter_100tCutoff_unimp.pdf used on
- input line 1928.
+ input line 1927.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_rho_5numiter_100tCutoff_unimp.pdf, id=1644, 361.35pt x 361.35pt>
+<plots/sim_rho_5numiter_100tCutoff_unimp.pdf, id=1648, 361.35pt x 361.35pt>
 File: plots/sim_rho_5numiter_100tCutoff_unimp.pdf Graphic file (type pdf)
 
 <use plots/sim_rho_5numiter_100tCutoff_unimp.pdf>
 Package pdftex.def Info: plots/sim_rho_5numiter_100tCutoff_unimp.pdf used on in
-put line 1931.
+put line 1930.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) ha
 s been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.1942 }
+l.1941 }
         pdfTeX warning (ext4): destination with the same identifier (name{figur
 e.2}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.1942 }
+l.1941 }
         
-<plots/sim_2epoch_mcles_tsplits[0.25, 0.25].pdf, id=1646, 361.35pt x 361.35pt>
+<plots/sim_2epoch_mcles_tsplits[0.25, 0.25].pdf, id=1650, 361.35pt x 361.35pt>
 File: plots/sim_2epoch_mcles_tsplits[0.25, 0.25].pdf Graphic file (type pdf)
 
 <use plots/sim_2epoch_mcles_tsplits[0.25, 0.25].pdf>
 Package pdftex.def Info: plots/sim_2epoch_mcles_tsplits[0.25, 0.25].pdf used on
- input line 1961.
+ input line 1960.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 File: plots/sim_2epoch_mcles_tsplits[0.5, 0.25].pdf Graphic file (type pdf)
 
 <use plots/sim_2epoch_mcles_tsplits[0.5, 0.25].pdf>
 Package pdftex.def Info: plots/sim_2epoch_mcles_tsplits[0.5, 0.25].pdf used on 
-input line 1970.
+input line 1969.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 File: plots/sim_2epoch_mcles_tsplits[0.25, 0.5].pdf Graphic file (type pdf)
 
 <use plots/sim_2epoch_mcles_tsplits[0.25, 0.5].pdf>
 Package pdftex.def Info: plots/sim_2epoch_mcles_tsplits[0.25, 0.5].pdf used on 
-input line 1980.
+input line 1979.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 
-<plots/sim_2epoch_mcles_tsplits[0.5, 0.5].pdf, id=1650, 361.35pt x 361.35pt>
+<plots/sim_2epoch_mcles_tsplits[0.5, 0.5].pdf, id=1654, 361.35pt x 361.35pt>
 File: plots/sim_2epoch_mcles_tsplits[0.5, 0.5].pdf Graphic file (type pdf)
 
 <use plots/sim_2epoch_mcles_tsplits[0.5, 0.5].pdf>
 Package pdftex.def Info: plots/sim_2epoch_mcles_tsplits[0.5, 0.5].pdf used on i
-nput line 1988.
+nput line 1987.
 (pdftex.def)             Requested size: 124.80373pt x 124.80286pt.
 pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) ha
 s been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2005 }
+l.2004 }
         pdfTeX warning (ext4): destination with the same identifier (name{figur
 e.3}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2005 }
+l.2004 }
         
 <plots/1001G_tCutoff10000_tsplits[10]_groupEurasia-no-Japan_mcle-dispersal.pdf,
- id=1654, 411.57828pt x 264.4552pt>
+ id=1658, 411.57828pt x 264.4552pt>
 File: plots/1001G_tCutoff10000_tsplits[10]_groupEurasia-no-Japan_mcle-dispersal
 .pdf Graphic file (type pdf)
 
 <use plots/1001G_tCutoff10000_tsplits[10]_groupEurasia-no-Japan_mcle-dispersal.
 pdf>
 Package pdftex.def Info: plots/1001G_tCutoff10000_tsplits[10]_groupEurasia-no-J
-apan_mcle-dispersal.pdf used on input line 2024.
+apan_mcle-dispersal.pdf used on input line 2023.
 (pdftex.def)             Requested size: 191.10214pt x 122.79283pt.
 
 <plots/1001G_tCutoff10000_tsplits[100]_groupEurasia-no-Japan_mcle-dispersal.pdf
-, id=1655, 411.57828pt x 264.4552pt>
+, id=1659, 411.57828pt x 264.4552pt>
 File: plots/1001G_tCutoff10000_tsplits[100]_groupEurasia-no-Japan_mcle-dispersa
 l.pdf Graphic file (type pdf)
 
 <use plots/1001G_tCutoff10000_tsplits[100]_groupEurasia-no-Japan_mcle-dispersal
 .pdf>
 Package pdftex.def Info: plots/1001G_tCutoff10000_tsplits[100]_groupEurasia-no-
-Japan_mcle-dispersal.pdf used on input line 2031.
+Japan_mcle-dispersal.pdf used on input line 2030.
 (pdftex.def)             Requested size: 191.10214pt x 122.79283pt.
 
 <plots/1001G_tCutoff10000_tsplits[1000]_groupEurasia-no-Japan_mcle-dispersal.pd
-f, id=1656, 411.57828pt x 264.4552pt>
+f, id=1660, 411.57828pt x 264.4552pt>
 File: plots/1001G_tCutoff10000_tsplits[1000]_groupEurasia-no-Japan_mcle-dispers
 al.pdf Graphic file (type pdf)
 
 <use plots/1001G_tCutoff10000_tsplits[1000]_groupEurasia-no-Japan_mcle-dispersa
 l.pdf>
 Package pdftex.def Info: plots/1001G_tCutoff10000_tsplits[1000]_groupEurasia-no
--Japan_mcle-dispersal.pdf used on input line 2038.
+-Japan_mcle-dispersal.pdf used on input line 2037.
 (pdftex.def)             Requested size: 191.10214pt x 122.79283pt.
 pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) ha
 s been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2051 }
+l.2050 }
         pdfTeX warning (ext4): destination with the same identifier (name{figur
 e.4}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2051 }
+l.2050 }
         
 <plots/1001G_tCutoff10000_tsplits[10,100]_groupEurasia-no-Japan_mcle-dispersal.
-pdf, id=1659, 411.57828pt x 264.4552pt>
+pdf, id=1663, 411.57828pt x 264.4552pt>
 File: plots/1001G_tCutoff10000_tsplits[10,100]_groupEurasia-no-Japan_mcle-dispe
 rsal.pdf Graphic file (type pdf)
 
 <use plots/1001G_tCutoff10000_tsplits[10,100]_groupEurasia-no-Japan_mcle-disper
 sal.pdf>
 Package pdftex.def Info: plots/1001G_tCutoff10000_tsplits[10,100]_groupEurasia-
-no-Japan_mcle-dispersal.pdf used on input line 2068.
+no-Japan_mcle-dispersal.pdf used on input line 2067.
 (pdftex.def)             Requested size: 191.10214pt x 122.79283pt.
 
 <plots/1001G_tCutoff10000_tsplits[10,1000]_groupEurasia-no-Japan_mcle-dispersal
-.pdf, id=1660, 411.57828pt x 264.4552pt>
+.pdf, id=1664, 411.57828pt x 264.4552pt>
 File: plots/1001G_tCutoff10000_tsplits[10,1000]_groupEurasia-no-Japan_mcle-disp
 ersal.pdf Graphic file (type pdf)
 
 <use plots/1001G_tCutoff10000_tsplits[10,1000]_groupEurasia-no-Japan_mcle-dispe
 rsal.pdf>
 Package pdftex.def Info: plots/1001G_tCutoff10000_tsplits[10,1000]_groupEurasia
--no-Japan_mcle-dispersal.pdf used on input line 2075.
+-no-Japan_mcle-dispersal.pdf used on input line 2074.
 (pdftex.def)             Requested size: 191.10214pt x 122.79283pt.
 
 <plots/1001G_tCutoff10000_tsplits[100,1000]_groupEurasia-no-Japan_mcle-dispersa
-l.pdf, id=1661, 411.57828pt x 264.4552pt>
+l.pdf, id=1665, 411.57828pt x 264.4552pt>
 File: plots/1001G_tCutoff10000_tsplits[100,1000]_groupEurasia-no-Japan_mcle-dis
 persal.pdf Graphic file (type pdf)
 
 <use plots/1001G_tCutoff10000_tsplits[100,1000]_groupEurasia-no-Japan_mcle-disp
 ersal.pdf>
 Package pdftex.def Info: plots/1001G_tCutoff10000_tsplits[100,1000]_groupEurasi
-a-no-Japan_mcle-dispersal.pdf used on input line 2082.
+a-no-Japan_mcle-dispersal.pdf used on input line 2081.
 (pdftex.def)             Requested size: 191.10214pt x 122.79283pt.
 pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) ha
 s been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2095 }
+l.2094 }
         pdfTeX warning (ext4): destination with the same identifier (name{figur
 e.5}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2095 }
+l.2094 }
         
-<plots/1001G_coalescence-times_nodes[877,778]_chr2.pdf, id=1664, 389.91748pt x 
+<plots/1001G_coalescence-times_nodes[877,778]_chr2.pdf, id=1668, 389.91748pt x 
 266.9235pt>
 File: plots/1001G_coalescence-times_nodes[877,778]_chr2.pdf Graphic file (type 
 pdf)
  <use plots/1001G_coalescence-times_nodes[877,778]_chr2.pdf>
 Package pdftex.def Info: plots/1001G_coalescence-times_nodes[877,778]_chr2.pdf 
-used on input line 2112.
+used on input line 2111.
 (pdftex.def)             Requested size: 195.0pt x 133.48991pt.
 
-<plots/1001G_coalescence-times_nodes[1044,1113]_chr2.pdf, id=1665, 389.91748pt 
+<plots/1001G_coalescence-times_nodes[1044,1113]_chr2.pdf, id=1669, 389.91748pt 
 x 263.16693pt>
 File: plots/1001G_coalescence-times_nodes[1044,1113]_chr2.pdf Graphic file (typ
 e pdf)
  <use plots/1001G_coalescence-times_nodes[1044,1113]_chr2.pdf>
 Package pdftex.def Info: plots/1001G_coalescence-times_nodes[1044,1113]_chr2.pd
-f used on input line 2119.
+f used on input line 2118.
 (pdftex.def)             Requested size: 195.0pt x 131.61125pt.
 
-<plots/1001G_coalescence-times_nodes[457,363]_chr5.pdf, id=1666, 389.3264pt x 2
+<plots/1001G_coalescence-times_nodes[457,363]_chr5.pdf, id=1670, 389.3264pt x 2
 66.98776pt>
 File: plots/1001G_coalescence-times_nodes[457,363]_chr5.pdf Graphic file (type 
 pdf)
  <use plots/1001G_coalescence-times_nodes[457,363]_chr5.pdf>
 Package pdftex.def Info: plots/1001G_coalescence-times_nodes[457,363]_chr5.pdf 
-used on input line 2126.
+used on input line 2125.
 (pdftex.def)             Requested size: 195.0pt x 133.72575pt.
 pdfTeX warning (ext4): destination with the same identifier (name{figure.6}) ha
 s been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2139 }
+l.2138 }
         pdfTeX warning (ext4): destination with the same identifier (name{figur
 e.6}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2139 }
-         <plots/1001g_NA-EUR.pdf, id=1667, 701.01903pt x 701.01903pt>
+l.2138 }
+         <plots/1001g_NA-EUR.pdf, id=1671, 701.01903pt x 701.01903pt>
 File: plots/1001g_NA-EUR.pdf Graphic file (type pdf)
 
 <use plots/1001g_NA-EUR.pdf>
-Package pdftex.def Info: plots/1001g_NA-EUR.pdf used on input line 2155.
+Package pdftex.def Info: plots/1001g_NA-EUR.pdf used on input line 2154.
 (pdftex.def)             Requested size: 390.0pt x 390.00078pt.
 
-Overfull \hbox (7.8324pt too wide) in paragraph at lines 2158--2159
+Overfull \hbox (7.8324pt too wide) in paragraph at lines 2157--2158
  [] 
  []
 
@@ -1709,68 +1707,68 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
 s been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2166 }
+l.2165 }
         pdfTeX warning (ext4): destination with the same identifier (name{figur
 e.7}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2166 }
+l.2165 }
         
 <plots/1001G_genome-displacements_tsplits[10,100,1000]_node313_time10.pdf, id=1
-670, 701.01903pt x 85.9781pt>
+674, 701.01903pt x 85.9781pt>
 File: plots/1001G_genome-displacements_tsplits[10,100,1000]_node313_time10.pdf 
 Graphic file (type pdf)
 
 <use plots/1001G_genome-displacements_tsplits[10,100,1000]_node313_time10.pdf>
 Package pdftex.def Info: plots/1001G_genome-displacements_tsplits[10,100,1000]_
-node313_time10.pdf used on input line 2183.
+node313_time10.pdf used on input line 2182.
 (pdftex.def)             Requested size: 390.0pt x 47.83253pt.
 
 <plots/1001G_genome-displacements_tsplits[10,100,1000]_node408_time10.pdf, id=1
-671, 701.01903pt x 93.41331pt>
+675, 701.01903pt x 93.41331pt>
 File: plots/1001G_genome-displacements_tsplits[10,100,1000]_node408_time10.pdf 
 Graphic file (type pdf)
 
 <use plots/1001G_genome-displacements_tsplits[10,100,1000]_node408_time10.pdf>
 Package pdftex.def Info: plots/1001G_genome-displacements_tsplits[10,100,1000]_
-node408_time10.pdf used on input line 2190.
+node408_time10.pdf used on input line 2189.
 (pdftex.def)             Requested size: 390.0pt x 51.969pt.
 
 <plots/1001G_genome-displacements_tsplits[10,100,1000]_node488_time10.pdf, id=1
-672, 701.01903pt x 103.13045pt>
+676, 701.01903pt x 103.13045pt>
 File: plots/1001G_genome-displacements_tsplits[10,100,1000]_node488_time10.pdf 
 Graphic file (type pdf)
 
 <use plots/1001G_genome-displacements_tsplits[10,100,1000]_node488_time10.pdf>
 Package pdftex.def Info: plots/1001G_genome-displacements_tsplits[10,100,1000]_
-node488_time10.pdf used on input line 2197.
+node488_time10.pdf used on input line 2196.
 (pdftex.def)             Requested size: 390.0pt x 57.37497pt.
 File: plots/1001G_genome-displacements_tsplits[10,100,1000]_node881_time10.pdf 
 Graphic file (type pdf)
 
 <use plots/1001G_genome-displacements_tsplits[10,100,1000]_node881_time10.pdf>
 Package pdftex.def Info: plots/1001G_genome-displacements_tsplits[10,100,1000]_
-node881_time10.pdf used on input line 2204.
+node881_time10.pdf used on input line 2203.
 (pdftex.def)             Requested size: 390.0pt x 66.27307pt.
 File: plots/1001G_genome-displacements_tsplits[10,100,1000]_node1044_time10.pdf
  Graphic file (type pdf)
 
 <use plots/1001G_genome-displacements_tsplits[10,100,1000]_node1044_time10.pdf>
 Package pdftex.def Info: plots/1001G_genome-displacements_tsplits[10,100,1000]_
-node1044_time10.pdf used on input line 2211.
+node1044_time10.pdf used on input line 2210.
 (pdftex.def)             Requested size: 390.0pt x 48.25769pt.
 
 <plots/1001G_genome-displacements_tsplits[10,100,1000]_node1095_time10.pdf, id=
-1673, 701.01903pt x 150.72577pt>
+1677, 701.01903pt x 150.72577pt>
 File: plots/1001G_genome-displacements_tsplits[10,100,1000]_node1095_time10.pdf
  Graphic file (type pdf)
 
 <use plots/1001G_genome-displacements_tsplits[10,100,1000]_node1095_time10.pdf>
 Package pdftex.def Info: plots/1001G_genome-displacements_tsplits[10,100,1000]_
-node1095_time10.pdf used on input line 2218.
+node1095_time10.pdf used on input line 2217.
 (pdftex.def)             Requested size: 390.0pt x 83.85387pt.
 
-Overfull \hbox (7.8324pt too wide) in paragraph at lines 2224--2225
+Overfull \hbox (7.8324pt too wide) in paragraph at lines 2223--2224
  [] 
  []
 
@@ -1778,14 +1776,14 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.8}) ha
 s been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2231 }
+l.2230 }
         pdfTeX warning (ext4): destination with the same identifier (name{figur
 e.8}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.2231 }
+l.2230 }
         
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 2237.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 2236.
  [60 <./plots/sim_sigmay_5numiter_100tCutoff.pdf> <./plots/sim_rho_5numiter_100
 tCutoff.pdf> <./plots/sim_sigmax_5numiter_1000tCutoff.pdf> <./plots/sim_sigmay_
 5numiter_1000tCutoff.pdf> <./plots/sim_rho_5numiter_1000tCutoff.pdf> <./plots/s
@@ -1848,24 +1846,20 @@ pdfTeX warning: /Library/TeX/texbin/pdflatex (file ./plots/1001G_genome-displac
 ements_tsplits[10,100,1000]_node1095_time10.pdf): PDF inclusion: multiple pdfs 
 with page group included in a single page
 >]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 2237.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 2236.
  (./ms.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 2237.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 2237.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 2236.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 2236.
 
 Package rerunfilecheck Info: File `ms.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
-
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 2237.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 2236.
  ) 
 Here is how much of TeX's memory you used:
- 29171 strings out of 492995
- 709557 string characters out of 6132704
- 951866 words of memory out of 5000000
- 32011 multiletter control sequences out of 15000+600000
+ 29169 strings out of 492995
+ 709553 string characters out of 6132704
+ 951768 words of memory out of 5000000
+ 32009 multiletter control sequences out of 15000+600000
  22583 words of font info for 83 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  76i,13n,133p,1105b,2318s stack positions out of 5000i,500n,10000p,200000b,80000s
@@ -1891,10 +1885,10 @@ xmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/local/texlive/2017/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb></usr/local/texlive/2017/texm
 f-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/local/texlive/2017/
 texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on ms.pdf (67 pages, 5851440 bytes).
+Output written on ms.pdf (67 pages, 5851964 bytes).
 PDF statistics:
- 2550 PDF objects out of 2984 (max. 8388607)
- 1417 compressed objects within 15 object streams
+ 2554 PDF objects out of 2984 (max. 8388607)
+ 1421 compressed objects within 15 object streams
  241 named destinations out of 1000 (max. 500000)
  500 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -27,9 +27,6 @@
 
 %\usepackage{lineno}
 
-\newcommand{\mo}[1]{\textcolor{red}{[#1]}} %Matt's comments
-\newcommand{\gc}[1]{\textcolor{blue}{[#1]}} %Graham's comments
-
 \title{Estimating dispersal rates and locating genetic ancestors with genome-wide genealogies}
 \author[1]{Matthew M Osmond}
 \author[2]{Graham Coop}
@@ -58,7 +55,7 @@ Spatial patterns in genetic diversity are shaped by individuals dispersing from 
 It has long been appreciated that these patterns of movement shape the underlying genealogies along the genome leading to geographic patterns of isolation by distance in contemporary population genetic data.
 However, extracting the enormous amount of information contained in genealogies along recombining sequences has, up till recently, not been computational feasible.
 Here we capitalize on important recent advances in gene-genealogy reconstruction and develop methods to use thousands of trees to estimate time-varying per-generation dispersal rates and to locate the genetic ancestors of a sample back through time.
-We take a likelihood approach using a simple approximate model (branching Brownian motion) as our prior distribution of spatial genealogies. 
+We take a likelihood approach in continuous space using a simple approximate model (branching Brownian motion) as our prior distribution of spatial genealogies. 
 After testing our method with simulations we apply it to the 1001 Genomes dataset of over one thousand \textit{Arabidopsis thaliana} genomes sampled across a wide geographic extent. 
 We detect a very high dispersal rate in the recent past, especially longitudinally, and use inferred ancestor locations to visualize many examples of recent long-distance dispersal and admixture. 
 We also use inferred ancestor locations to identify the origin and ancestry of the North American expansion and to depict alternative geographic ancestries stemming from multiple glacial refugia. 
@@ -735,7 +732,7 @@ Finally, the dataset includes 125 samples from across North America, a range exp
 
 We used \texttt{Relate} \citep{speidel2019method} to infer the tree sequence, estimate the panmictic effective population size through time, and resample branch lengths for importance sampling (see \nameref{sec:methods}).
 After dropping the $50\%$ of trees with the fewest number of mutations, per chromosome, the tree sequence contains 213,481 trees across the 5 autosomes.
-The tree sequences (in both anc/mut and \texttt{tskit} formats) and the code to generate them are publicly available \mo{link}, which we hope will facilitate additional analyses (e.g., inferring selection \citep{stern2019approximate,stern2020disentangling}).
+The tree sequences (in both anc/mut and \texttt{tskit} formats) are publicly available at \url{https://doi.org/10.5281/zenodo.5099657}, which we hope will facilitate additional analyses \citep[e.g., inferring selection;][]{stern2019approximate,stern2020disentangling}.
 
 \textit{A. thaliana} is a selfer with a relatively low rate of outcrossing \citep{bomblies2010local,platt2010scale}, thus it is worth taking a moment to consider the impact of selfing on our inferences. 
 We chose the 1001 Genomes panel because of its large size and broad geographic sampling.
@@ -879,7 +876,7 @@ Maximum likelihood locations calculated using per-chromosome four-epoch dispersa
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 There are also some samples that are outliers in terms of distance traveled by their ancestors.
-For example, there are two samples, one from the UK (accession 7314) and the other from Belarus (accession 6981), that travel long distances towards one another in the past $\sim10$ generations (see also Figure 3B in \citep{alonso2016}). 
+For example, there are two samples, one from the UK (accession 7314) and the other from Belarus (accession 6981), that travel long distances towards one another in the past $\sim10$ generations \citep[see also Figure 3B in][]{alonso2016}. 
 A look at the coalescence times between these two samples shows that these two individuals are extremely closely related along almost all of their genome except the first $\approx700$kb of chromosome 5 (Figure \ref{fig:thal_coalescence_times}C).
 Other outliers include the sample from Cabo Verde (accession 6911), which is classified as a Relict but includes a large amount of European ancestry \citep{alonso2016} and the most eastward Russian sample (accession 9622), which has substantial European ancestry \citep{alonso2016}.
 More generally, we also see greater rates of movement, on average, from samples from further east, consistent with the previous finding of reduced genetic distance between `Asian' samples up to $\sim$250km apart \citep{alonso2016}, the signal of a rapid eastward expansion. 
@@ -1105,7 +1102,7 @@ The Admixed  samples show much more variation in the amount of northward displac
 \textbf{Relict samples display an alternative geographic history.}
 Mean genetic ancestor locations of all samples from Spain (excluding the Canary Islands) by admixture group.
 Data as in Figure \ref{fig:thal_displaced}, with `x's the sample locations and `o's the mean ancestor location and lines connecting them.
-Colours indicate admixture group (Non-Relict is any group besides Relict or Admixed; Admixed is any sample with $<60\%$ ancestry in all groups \citep{alonso2016}).
+Colours indicate admixture group \citep[Non-Relict is any group besides Relict or Admixed; Admixed is any sample with $<60\%$ ancestry in all groups;][]{alonso2016}.
 Triangles indicate mean locations for each admixture group.
 Maximum likelihood locations calculated using per-chromosome four-epoch dispersal rates (Figure \ref{fig:thal_sigma}B).
 }
@@ -1133,7 +1130,7 @@ For example, the sample from France discussed earlier (accession 9933) appears t
 %1001g chromosome displacements%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\begin{figure}[!htb]
+\begin{figure}[!tb]
 
 \begin{center}
 
@@ -1189,6 +1186,7 @@ This figure also serves to illustrate just how much information is being inferre
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage\newpage %custom as latex trying to force this onto bottom of page incorrectly
 \section*{Discussion}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1198,6 +1196,7 @@ This figure also serves to illustrate just how much information is being inferre
 
 We have developed a method that uses a sequence of trees along a recombining genome -- a genome-wide genealogy -- to estimate individual-level dispersal rates and locate genetic ancestors (Figure \ref{fig:overview}). 
 At the core of our method is a simple model of Brownian motion, allowing likelihoods to be quickly calculated from shared evolutionary times and sample locations.
+This also allows us to work in continuous space, negating the need to group individuals into discrete populations.
 On top of this we layer on importance sampling to correct for bias in inferred branch lengths, a time cutoff to ignore strong violations of the model in the deep past, and multiple epochs to allow the dispersal rate to vary through time. 
 Simulation tests show that our method can accurately infer dispersal rate (with a slight overestimate caused by errors in tree inference), detect shifts in the dispersal rate over time, and trace major geographic ancestries hundreds of generations into the past (Figure \ref{fig:sims}).
 Applying our method to more than one thousand \textit{Arabidopsis thaliana} genomes across a huge geographic expanse \citep{alonso2016}, we find strong evidence for very rapid recent dispersal (Figure \ref{fig:thal_sigma}), especially across longitude, and show how locating genetic ancestors can detect and visualize \textit{i}) long-distance dispersal events (Figures \ref{fig:thal_displaced}-\ref{fig:thal_outliers}), \textit{ii}) the source of population expansions (Figure \ref{fig:thal_NA}), \textit{iii}) alternative geographic ancestries (Figures \ref{fig:thal_ancestries}-\ref{fig:thal_spanish_moves}), and \textit{iv}) admixture (Figure \ref{fig:thal_chr_displaced}).
@@ -1770,8 +1769,8 @@ We locate ancestors as described above for simulations, using bounds of $(-90,90
 \subsection*{Data availability statement}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-All code used to perform the analyses in this study can be found at \mo{link}.
-A \texttt{Python} package of our method is available at \mo{link}
+All code used to perform the analyses in this study can be found at \url{https://github.com/mmosmond/sparg-ms}.
+A \texttt{Python} package of our method is available at \url{https://github.com/mmosmond/sparg}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
