@@ -1,0 +1,27 @@
+# Workflow
+
+Load python module and enter the virtual environment with
+
+$source startup.sh
+
+Now we can run any rule in Snakefile with N cores with
+
+$snakemake --cores N rule 
+
+But in principle we first do a dry-run to see if everything is set-up correctly
+
+$snakemake --cores N rule -n
+
+And then submit as a job to the slurm manager using our profile (set up in ~/.config/snakemake/slurm/)
+
+$snakemake --profile slurm --jobs 1 rule  
+
+If we want to submit multiple jobs to the same node (to use more threads or to line-up short jobs) we can 
+
+$snakemake rule --profile slurm --groups subrule=group0 --group-components group0=X --jobs 1
+
+where X is the number of rules to bundle together on one node.
+
+Sometimes it is helpful to debug first, with an interactive job
+
+$debugjob N 

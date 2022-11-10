@@ -1,317 +1,464 @@
-#  -----------  python modules --------------
-
-import numpy as np
-import h5py #for reading hdf5 format (imputed SNP matrix)
-import csv
-from Bio import SeqIO #biopython reads fastas
+# ------------ python modules ---------
+import math
+import bx #convert .maf to .fa #requires first running 'pip install bx-python'
+from Bio import SeqIO #reads fastas #requires 'pip install biopython'
 from Bio.SeqRecord import SeqRecord #to write fastas
-import tskit #to deal with tree sequences
-import sparg #to run our method
-import pandas as pd #to deal with metadata
+import glob, re #to find out how many chunks we have
 
 # ------------  paths --------------------
 
 DATADIR = 'data/' #where to put outputs
-SCRIPTDIR = 'scripts/' #location of accessory scripts
-PROGRAMDIR = '~/programs/' #where programs live
-PLINK2 = PROGRAMDIR + 'plink2' #plink2, for filtering SNPs
-ESTSFS = PROGRAMDIR + 'est-sfs-release-2.03/est-sfs' #program to estimate ancestral genome (note that you need to increase max_config and max_n_alleles in est-sfs.c to deal with 1001G whole chromosomes)
-RELATE = PROGRAMDIR + 'relate_v1.1.4_x86_64_static' #where relate lives
+PROGDIR = 'programs/'
 
-# -----------------files ------------------
+# ------------- variables ------------
 
-snp_file = '1001genomes_snp-short-indel_only_ACGTN.vcf.gz'
-genome_file = '1001_SNP_MATRIX.tar.gz'
-MAFtoFASTA = PROGRAMDIR + 'bx-python/scripts/maf_to_concat_fasta.py' #script from bx-python to make fasta from multi-species alignment 
-SEEDFILE = SCRIPTDIR + 'seedfile.txt' # random seed for est-sfs (changes after every run, so don't use as input because will then try and rerun)
-popsize_script = RELATE + '/scripts/EstimatePopulationSize/EstimatePopulationSizeMMO.sh' #edited this to work for haploids and output anc/mut
-accessions_file = DATADIR + '1001G_metadata.csv' 
-location_file = DATADIR + '1001G.locs' 
-
-# ---------------- parameters-------------------
-
-chromosomes = range(1,6) #chromosomes to run this for
+CHRS = range(1,6) #chromosome numbers
 chr_lens = [30427671, 19698289, 23459830, 18585056, 26975502] #chromosome lengths (TAIR 10, stdpopsim, maf file all agree; note the maf includes the chloroplast which we ignore)
 
-# inferring tree sequence
-twoNes = [170000] #initial estimates of 2Ne (from 2Ne = ts.diversity()/(2u))
-us = [7e-9] #mutation rate estimate 
-num_iters = [5] #number of MCMC iterations to do when reestimating pop size and branch lengths
-thresholds = [0.5] #percent of trees to drop when restimating branch lengths
+#################################################################################################################################
+# RULES
+#################################################################################################################################
 
-# processing trees
-nloci = 1000 #number of loci to get trees at on each chromosomes
-loci = range(nloci)
-tCutoffs = [10000] #,10000] #gens to go back to (ignore older branches)
-M = 10 #number of trees to sample at each locus for importance sampling
+# ------------------ download VCF ----------------------------
+# note: took 16m to download the 18G 1001g file
+# note: cvi_africa_and1001 vcf is 201GB zipped, and took about 2h to download
 
-# inferring dispersal and locations
-dCutoffs = [1000] #number of SNPs two samples must differ by to not be "nearly identical"
-method = 'L-BFGS-B' #method for minimum finding
-scale_phi = 100 #scale branching rate to have similar variance as other parameters (speed up minimize)
-groups = ['Eurasia-no-Japan'] #, 'eurasia'] #which samples to include
-#groups = ['Eurasia']
-bnds = [(1e-6,None), (1e-6,None), (-0.99,0.99), (1e-6,None)] #bounds on parameters being estimated (sigma, sigma, rho, phi)
-locations_bnds = ((-90,90), (-180,180)) #bounds on locations (in lat/long)
-xonly = False #sneaky code to find mcle dispersal in longitude only
-yonly = True #latitude only
+# just 1001g
+#VCF_PATH = 'https://1001genomes.org/data/GMI-MPI/releases/v3.1/'
+#VCF = '1001genomes_snp-short-indel_only_ACGTN.vcf' 
 
-# initial guess at dispersal parameters
-x0s = [
-       [1, 2, 0, #1 epoch
-        0.01*scale_phi],
-       [4e-2, 2e-1, 0,   #2 epoch (oldest epoch first)
-        1, 2, 0, 
-        0.01*scale_phi],
-       [4e-2, 2e-1, 0,   #3 epoch
-        4e-2, 2e-1, 0,
-        1, 3, 0,
-        0.01*scale_phi],
-       [0.2, 0.6, 0,     #4 epoch
-        0.4, 0.8, 0, 
-        0.7, 0.9, 0, 
-        3, 7, 0, 
-        0.01*scale_phi],
-       [4e-2, 2e-1, 0,
-        0.2, 0.6, 0,     #5 epoch
-        0.4, 0.8, 0, 
-        0.7, 0.9, 0, 
-        3, 7, 0, 
-        0.01*scale_phi]
-      ]
+# 1001g + africa + cvi (Fulgione et al 2022 Nat Comms) https://www.ebi.ac.uk/ena/browser/view/PRJEB44201?show=analyses
+VCF_PATH = 'ftp://ftp.sra.ebi.ac.uk/vol1/ERZ188/ERZ1886920/'
+VCF = 'cvi_africa_and1001.EVA_2020-10-20.vcf.gz_dip2Norm.vcf.b.gz.vcf_atcgOnly.vcf'
 
-# mle dispersal
-mle_dispersal_loci = range(0, nloci, 1) 
-mle_dispersal_tsplits = [[]]
+VCF_GZ = VCF + '.gz' #the big vcf
+VCF_GZ_TBI = VCF_GZ + '.tbi' #the index file (only for Fulgione vcf)
 
-# mcle dispersal
-mcle_dispersal_loci = range(0, nloci, 10)
-mcle_dispersal_tsplits = [
-                          [],                     #1 epoch
-                         # [10],[100],[1000],          #2 epochs 
-                         # [10,100],[10,1000],[100,1000], #3 epochs
-                         # [10,100,1000],               #4 epochs
-                         # [1,10,100,1000] #5 epochs
-                         ]
+rule get_vcf:
+  input:
+  output:
+    DATADIR + VCF_GZ,
+    DATADIR + VCF_GZ_TBI
+  resources:
+    time = 3*60 
+  shell:
+    """
+    wget {VCF_PATH}{VCF_GZ} -P {DATADIR}
+    wget {VCF_PATH}{VCF_GZ_TBI} -P {DATADIR}
+    """
 
-# displacements of all samples
-displacements_loci = range(0, nloci, 10) 
-displacements_times = [10,100,1000] #geneartions ago to calculate displacements
-displacements_tsplits = [[10,100,1000]] #splits times for displacements
+# ------------------ split by chromosome --------------------
+# split by chromosome and unzip to speed up downstream analyses 
 
-# ancestor locations of specific samples
-ancestor_locations_loci = range(0, nloci, 1)
-ancestor_locations_times = np.logspace(0, 3, 10) #when to locate ancestors
-ancestor_locations_tsplits = [[10,100,1000]]
-ancestor_locations_nodes = [
-                            #323, #cabo verde sample
-                            #338, #pure spain in spain
-                            #694, #near 50:50 spain and relict in spain
-                            #697,  #pure relict in spain
-                            431, #one of the two japan samples (use with group=Eurasia if want to see disperal)
-                           ]
-# params for NA locations
-#locations = np.loadtxt(location_file) #locations of samples
-#NA_nodes = [i for i,j in enumerate(locations) if j[1]<-30] #in NA
-#ancestor_locations_nodes = NA_nodes
-#ancestor_locations_times = np.linspace(0,1000,11) #linear time scale
+VCF_CHR = DATADIR + VCF_GZ + '_chr{CHR}.vcf'
+results = expand(VCF_CHR, CHR=range(1,6))
 
-# ancestral locations of misplaced nodes (misplaced to mean of all kept samples)
-misplaced_loci = range(0, nloci, 1)
-misplaced_nodes = [
-                    697 # a relict in spain that is kept
-                  ]
-misplaced_tsplits = [[10,100,1000]]
-misplaced_times = ancestor_locations_times
+rule split_vcf:
+  input:
+    results
 
-# --------------- functions -------------------------
+rule split_vcf_chr:
+  input:
+    DATADIR + VCF_GZ
+  output:
+    VCF_CHR
+  resources:
+    time = math.floor(3*60/5) #takes about 3h each; if submitting together divide by number of chromosomes as slurm adds these together but can run in parallel
+  threads: math.floor(80/5) #only seems to use 1 despite what I write here (because bcftools only uses more than 1 thread when compressing output, eg with -Oz)
+  shell:
+    '''
+    module load samtools/1.13
+    bcftools filter -r {wildcards.CHR} --threads {threads} {input} > {output}
+    '''
 
-def filter_samples(locations, group, clusters):
+# --------------------- filter out samples ------------------
+    # get list of all sample ids in our big VCF 
+    # bcftools query -l {input} > {output[0]} 
+
+    # clone Fulgione repo 
+    # git clone https://github.com/HancockLab/CVI.git
+    # get list of 1001G IDs
+    # awk '{{print $1}}' CVI/data/1001genomes-accessions.txt > {output[1]} #first column from metadata
+    # sed -i '1d' {output[1]} #remove header
+
+    # get list of Durvasula et al IDs
+    # awk '{{print $1}}' CVI/data/moroccan_paper_IDs.txt > {output[2]} 
+
+    # get list of Fulgione et al IDs
+    # cp CVI/data/capeVerdeos_clean_final_2021-01-18.txt {output[3]}
+    # check the lengths
+    # wc -l {output[0]}
+    # cat {output[1]} {output[2]} {output[3]} | wc -l
+
+    # we're missing 46 samples
+    # which ids are we missing?
+    # grep -xvf data/ids-combined.txt data/ids-all.txt > data/ids-missing.txt
+
+    # what are the missing samples?
+    # for i in $(cat data/ids-missing.txt); do grep -nr "$i" CVI/data; done
     
-  if group == 'Eurasia':
-    not_na = [i for i,j in enumerate(locations) if j[1]>-30] #not in NA (longitude greater than -30), and not missing (since the inequality is false when nan)
-  elif group == 'Eurasia-no-Japan':
-    not_na = [i for i,j in enumerate(locations) if j[1]>-30 and j[1]<120] #not NA, Japan, or nan
-  
-  # try to make clusters from pairwise differences  
-  #remove = []
-  #for cluster in clusters:
-  #  remove.append(cluster[1:]) #remove all but first sample in each cluster (a bit of a rough approach)
-  #remove = [i for j in remove for i in j] #flatten the list
+    # and what is their coverage like?
+    # for i in $(cat data/ids-missing.txt); do grep -nr "$i" data/*av-cov*; done
 
-  # just remove all samples
-  remove = np.unique(clusters) #remove all samples that are in a nearly identical pair
+    # 4073_M is resequenced CVI-0 (from Fulgione et al 2022, line 35 of sup mat), id 6911 in 1001g; 4073 has higher coverage so let's exclude 6911
+    # SRS... are lyrata S-locus genotypes, which we want to exclude
+    # 21131 is Mt0-1, but not sure what that is, doesn't seem to be in 1001g or Durvalsula or Fulgione, but fine coverage so include
+    # 21132 is Mt0-2, not sure, fine coverage
+    # 21133 is Mt0-3, not sure, fine coverage
+    # 21134 is Mt0-4, not sure, fine coverage
+    # 21135 is Aitba, this comes from Durvalsula line 18 in sup mat, fine coverage
+    # 21137 is Ita-0, durvasula line 18, fine coverage
+    # 21138 is Plateres, durvasula line 24, fine coverage
+    # 21139 is Toufl-1, durvasula line 18, fine coverage
+    # 211399 is Tnz2-75925, likely a tanzanian sample from durvasula, line 23, fine coverage
+    # 35520 is Tanz-4003, tanz from durvasula, line 23, fine coverage
+    # 37472 is M_nma-Meh-4_exH7-2, looks like this is some of 37473/M_nma-Meh-4 from durvasula, with decent coverage
+    # 37468 is M_sma-Elk-5_exH2-1, and it looks like this is some of 37467/M_sma-Elk-5 from durvalsula, and it looks like it has decent coverage, so will want to include
+    # AH... must be the 9 herbaria samples from durvalsula, line 24; these have poor coverage so exclude
 
-  sample_ix = range(len(locations)+1) #index for all samples
-  sample_ix_nonidentical = [i for i in sample_ix if i not in remove] #list of nonidentical sample idices
-  keep = [i for i in sample_ix_nonidentical if i in not_na] #list of samples to keep
+    # so, so far exclude: 6911, SRS*, AH*
+    #
+    # now, check the coverage of all samples
+    # sort -k2 -r -n data/*chr1*av-cov*
 
-  return keep
+    # it turns out that many of the 1001g samples have lower average coverage than the herbaria samples! so we may want to try keeping the AH* samples and instead filtering out samples with av cov below some threshold
 
-# ------------------ download SNPs ----------------------------
+    # actually, the coverage is just averaged across sites that arent missing, so we're better off taking a look at how many sites arent missing
+    # sort -k4 -r -n data/*chr1*av-cov*
 
-rule get_snps:
+    # and we want to exclude those with low numbers of non-missing sites, though we may also want to exclude samples with very low average coverage since we will remove sites when any sample has cov les than 3
+    # so we remove all SRS* as well as 6911 (duplicate with 4073_M) and 9128 and 9991 (average coverage <3 for most chromosomes)
+
+IDS_DROPPED = DATADIR + 'ids-drop.txt'
+IDS_KEPT = DATADIR + 'ids-keep.txt' 
+IDS_ALL = DATADIR + 'ids-all.txt'
+
+rule get_ids:
+  input:
+    DATADIR + VCF_GZ,
+  output:
+    IDS_ALL,
+    IDS_KEPT,
+    IDS_DROPPED
+  resources:
+    time = 1
+  threads: 1
+  shell:
+    '''
+    module load samtools/1.13
+    bcftools query -l {input} > {output[0]} #ids of all samples in vcf
+    sed '/SRS*/d' {output[0]} > {output[1]} #remove lyrata samples
+    sed -i '/6911/d;/9128/d;/9991/d' {output[1]} #remove duplicate and low coverage samples
+    grep -xvf {output[1]} {output[0]} > {output[2]}
+    '''
+
+VCF_CHR_KEEP = VCF_CHR + '_keep-samples.vcf'
+
+rule remove_samples:
+  input:
+    expand(VCF_CHR_KEEP, CHR=range(1,6))
+
+ruleorder: remove_samples_chr > split_vcf_chr 
+
+rule remove_samples_chr:
+  input:
+    IDS_DROPPED,
+    VCF_CHR
+  output:
+    VCF_CHR_KEEP
+  resources:
+    time = math.floor(2*60/5) #took just under 2 hours
+  threads: 1 
+  shell:
+    '''
+    module load samtools/1.13
+    bcftools view -S ^{input[0]} {input[1]} > {output}
+    '''
+
+# ------------------- filter SNPs ----------------------------- 
+# adapted from https://github.com/HancockLab/CVI/blob/master/adaptive_variants_history/inference_with_relate_clues/CVI_FRI_FLC_RELATE_CLUES_commands.sh
+# -m2 -M2 means we need at least two alleles and at most two alleles at a site (ie biallelic)
+# -v snps means we are filtering down to just snps
+# -c1 means we need at least 1 non-reference allele present (ie something is segregating here)
+# -i 'MIN(FMT/DP)>3 & MIN(FMT/GQ)>25 & F_MISSING=0' is filtering to sites where the minimum coverage is greater than 3, the minimum quality is greater than 25, and the fraction of missing genotypes is 0
+# took just over 1 hour
+# problem: removes essentially every snp -- likely because 1001G samples have so many missing/low coverage sites
+# solutions: go back to pre-imputed 1001G, filter more samples, impute
+
+VCF_CHR_KEEP_FILTERED = VCF_CHR_KEEP + '_mincov{mincov}_minqual{minqual}_fmissing{fmissing}.vcf' 
+mincovs = [3]
+minquals = [25]
+fmissings = [0]
+
+rule filter_vcf:
+  input: 
+    expand(VCF_CHR_KEEP_FILTERED, CHR=range(1,6), mincov=mincovs, minqual=minquals, fmissing=fmissings)
+
+ruleorder: filter_vcf_chr > remove_samples_chr > split_vcf_chr
+
+rule filter_vcf_chr:
+  input: 
+    VCF_CHR_KEEP
+  output:
+    VCF_CHR_KEEP_FILTERED
+  resources:
+    time = math.floor(2*60/5)
+  shell:
+    """  
+    module load samtools/1.13
+    bcftools view -m2 -M2 -v snps -c1 -i 'MIN(FMT/DP)>{wildcards.mincov} & MIN(FMT/GQ)>{wildcards.minqual} & F_MISSING={wildcards.fmissing}' {input} > {output}
+    """
+
+# -------------------- imputing ---------------------
+# since our filters dropped too many sites lets impute so we have no missing data
+# see https://www.biorxiv.org/content/10.1101/2022.03.22.485410v2.full, who removed non-biallelics and then used beagle with default params
+# see https://onlinelibrary.wiley.com/doi/full/10.1111/tpj.14659, who removed low MAF sites and then used beagle with Ne=250,000 
+# we dont want to remove sites by MAF because we want recent history, so let's just remove non-biallelic sites, which we'll do for Relate later anyway
+
+VCF_CHR_KEEP_BIALLELIC = VCF_CHR_KEEP + '_biallelic.vcf' 
+
+rule biallelic_vcf:
+  input: 
+    expand(VCF_CHR_KEEP_BIALLELIC, CHR=range(1,6))
+
+ruleorder: biallelic_vcf_chr > split_vcf_chr
+
+rule biallelic_vcf_chr:
+  input: 
+    VCF_CHR_KEEP
+  output:
+    VCF_CHR_KEEP_BIALLELIC
+  resources:
+    time = math.floor(2*60/5)
+  shell:
+    """  
+    module load samtools/1.13
+    bcftools view -m2 -M2 -v snps -c1 {input} > {output}
+    """
+
+# ----------------- get BEAGLE ----------------
+
+BEAGLE = 'beagle.05May22.33a.jar' 
+BEAGLEDIR = PROGDIR + 'beagle/'
+
+rule get_beagle:
   input:
   output:
-    DATADIR + snp_file,
+    BEAGLEDIR + BEAGLE
   resources:
-    time = 60
+    time = 1
+  threads: 1
+  shell:
+    '''
+    wget https://faculty.washington.edu/browning/beagle/{BEAGLE} -P {BEAGLEDIR}
+    '''
+
+# --------------------- download recombination map -----------------------
+
+MAP_CHR = DATADIR + 'arab_chr{CHR}_map_loess.txt'
+
+rule get_maps:
+  input:
+  output:
+    expand(MAP_CHR, CHR=range(1,6))
   shell:
     """
-    wget https://1001genomes.org/data/GMI-MPI/releases/v3.1/{snp_file} -P {DATADIR}
+    wget https://stdpopsim.s3-us-west-2.amazonaws.com/genetic_maps/AraTha/salome2012_maps.tar.gz -P {DATADIR}
+    tar -xf {DATADIR}salome2012_maps.tar.gz -C {DATADIR}
     """
 
-# ------------------- filter SNPS ------------------------------------
+# ------------------- convert recombination map to PLINK format for BEAGLE ----------
+# the salome maps have headers of: Chromosome Position(bp) Rate(cM/Mb) Map(cM)
+# BEAGLE asks for PLINK format maps, where the columns are: chromosome snp_id genetic_distance (cM) position (bp)
+# so we need to convert chromosome ids to purely numeric values, eg chr1 -> 1
+# looks like we can just make all the snp_ids . (like in the BEAGLE example with human genome project)
+# the 4th column of salome maps is all 0, so we need to calculate genetic distance from the positions and rate (2nd and 3rd columns)
+# and move the 2nd column to the 4th column
+# finally, PLINK format requires a line for every snp... but BEAGLE will use linear interpolation, which is fine
 
-rule filter_snps:
+MAP_CHR_PLINK = MAP_CHR + '.map'
+MAP_CHR_PLINK_TMP = MAP_CHR + '.tmp'
+
+rule salome_to_plink_chr_first:
   input:
-    DATADIR + snp_file
+    MAP_CHR
   output:
-    DATADIR + '1001G.fam',
-    DATADIR + '1001G_MAF0.05.bim',
-    DATADIR + '1001G.bed',
-    DATADIR + '1001G_MAF0.05.bed'
+    MAP_CHR_PLINK_TMP
   resources:
-    time = 15
-  threads: 40
+    time = 1
+  threads: 1
   shell:
-    """
-    # use plink2 to make binary ped file (bed, with genotype info) and associated pedigree (fam, sample names) and map (bim, allele names) from the SNP VCF
-    #filtering out SNPs where more than 20% of individuals have missing data
-    # and filtering to biallelic SNPs  
+    '''
+    awk '{{print "{wildcards.CHR}", ".", $3, $2}}' {input} | tail -n +2 > {output} #changes chr{wildcards.CHR} to {wildcards.CHR}, makes id ., and moves 2 column to 4th position; then drop header
+    '''
 
-    {PLINK2} \
-        --snps-only \
-        --geno 0.2 \
-        --max-alleles 2 \
-        --vcf {input} \
-        --out {DATADIR}1001G \
-        --make-bed \
-        --threads {threads}
-
-    # use plink2 to prune SNPs in LD 
-    #and remove SNPs with minor allele frequency less than 0.05
-    #and set any missing variant ID to chromosome:basepair (@:#)
-
-    {PLINK2} \
-        --bfile {DATADIR}1001G \
-        --maf 0.05 \
-        --out {DATADIR}1001G_MAF0.05 \
-        --set-missing-var-ids @:# \
-        --make-bed \
-        --threads {threads} 
-    """
-# ------------------ download imputed haploid genomes ----------------------------
-
-rule get_genomes:
+rule salome_to_plink_chr_second:
   input:
+    MAP_CHR_PLINK_TMP
   output:
-    DATADIR + '1001_SNP_MATRIX/imputed_snps_binary.hdf5'
+    MAP_CHR_PLINK
   resources:
-    time = 10
-  shell:
-    """
-    wget https://1001genomes.org/data/GMI-MPI/releases/v3.1/SNP_matrix_imputed_hdf5/{genome_file} -P {DATADIR}
-    tar -xzf {DATADIR}{genome_file} -C {DATADIR} 
-    """
-
-# ------------------ filter imputed snps and convert hdf5 to haps format -----------------
-
-haps_pattern = DATADIR + '1001G_chr{CHR}.haps'
-haps_results = expand(haps_pattern, CHR=chromosomes)
-
-rule snps_to_haps:
-  input:
-    DATADIR + '1001_SNP_MATRIX/imputed_snps_binary.hdf5',
-    DATADIR + '1001G_MAF0.05.bim',
-  output:
-    haps_results
-  resources:
-    time = 60
+    time = 1
+  threads: 1
   run:
-    # load files
-    f = h5py.File(input[0], 'r') # this is the imputed SNP matrix provided by the 1001G project 
-    listofsnps = np.genfromtxt(input[1], dtype="str")[:,1] # this is the list of SNPs after filters (made using plink2 on the vcf from 1001G)
-    alleles = np.genfromtxt(input[1], dtype="str")[:,4:6] # these are the ref and alt alleles
-    # get info
-    positions = f['positions'][:]# Get all SNP positions for all chromosomes
-    chr_regions = f['positions'].attrs['chr_regions']# Get start and end points of chromosomes
-    # Initialize arrays to hold indices and positions
-    indices = []
-    positions_chr = []
-    positions_all = []
-    genotypes = []
-    position = []
-    ix = []
-    # The positions in the h5py files are NOT associated with chromosome number so we need to retrieve the indices to delimit the 5 chromosomes
-    for i in chromosomes:
-      indices.append(chr_regions[i-1])
-    # convert positions to chr:position format so we can find the intersection with the pruned list
-    count = 0
-    for i in chromosomes:
-      positions_chr = [str(i)+":"+str(position) for position in positions[indices[i-1][0]:indices[i-1][1]]]
-      if count == 0:
-        positions_all = positions_chr
-      else:
-        positions_all = np.append(positions_all, positions_chr)
-      count += 1
-    # the intersection
-    ix = np.where(np.isin(positions_all, listofsnps))
-    ix = np.array(ix, dtype=int)[0] #reformat
-    # chromosome id for each snp position
-    chrsid = np.hstack([[i+1] * j for i,j in enumerate(chr_regions[:,1]-chr_regions[:,0])])
-    # number of filtered snps on each chromosome
-    temp, chrslen = np.unique(chrsid[ix], return_counts=True)
-    # get reference and alternate allele
-    permutation = [1,0]# note that plink seems to list alternate alleles first, so flip
-    idx = np.empty_like(permutation)
-    idx[permutation] = np.arange(len(permutation))
-    alleles = alleles[:, idx]
-    # save haps file one row at a time, one file for each chromosome
-    chrlens = np.hstack([0,chrslen]) #add 0 for easier indexing
-    chrbreaks = np.cumsum(chrlens) # endpoint filtered snp indexes for each chromosome
-    for i in chromosomes:
-      filename = DATADIR + '1001G_chr%d' %i #filename
-      ixi = ix[chrbreaks[i-1]:chrbreaks[i]] #chromosome i indices
-      # haps file
-      with open(filename  + '.haps', mode='w') as file:
-        writer = csv.writer(file, delimiter=' ')
-        for j,k in enumerate(ixi):
-          data = np.hstack((i, '.', positions[k], alleles[chrbreaks[i-1] + j], f['snps'][k])) # format as required for haps file in relate
-          writer.writerow(data)
-      file.close()
+    # load map
+    data = []
+    with open(input[0]) as f:
+      for line in f.readlines():
+        data.append(line.split())
+    # calculate recombination distances
+    cms = [0] #initiate with 0 cM at first position
+    for i in range(len(data)-1):
+      cms.append(cms[i] + (int(data[i+1][3]) - int(data[i][3]))*float(data[i][2])*1e-6) #get cM of next position
+    # insert recombination distances into data
+    for i,line in enumerate(data):
+      line[2] = str(cms[i]) #make the 3rd column the cM position
+    # write the file
+    with open(output[0], 'w') as out:
+      for line in data:
+        out.write(' '.join(i for i in line))
+        out.write(' \r\n')
+
+rule salome_to_plink:
+  input:
+    expand(MAP_CHR_PLINK, CHR=range(1,6))
+
+# ------------------ run BEAGLE ---------------------
+# use parameters as in Arouisse et al 2019 https://doi.org/10.1111/tpj.14659 and add genetic map, which BEAGLE recommends
+# sounds like Gamba et al 2022 https://doi.org/10.1101/2022.03.22.485410 use default params and no map
+
+VCF_CHR_KEEP_BIALLELIC_IMPUTED = VCF_CHR_KEEP_BIALLELIC + '_imputed.vcf.gz' 
+
+rule impute:
+  input:
+    expand(VCF_CHR_KEEP_BIALLELIC_IMPUTED, CHR=range(1,6))
+
+ruleorder: impute_chr > split_vcf_chr
+
+rule impute_chr:
+  input:
+    VCF_CHR_KEEP_BIALLELIC,
+    MAP_CHR_PLINK
+  output:
+    VCF_CHR_KEEP_BIALLELIC_IMPUTED 
+  params:
+    prefix = VCF_CHR_KEEP_BIALLELIC_IMPUTED.replace('_imputed.vcf.gz','_imputed') #beagle adds its own suffixs
+  resources:
+    time = 2*60,
+    mem_mb = 200*1000
+  threads: 80
+  shell:
+    '''
+    module load java/1.8.0_201
+    java -Xmx{resources.mem_mb}m -jar {BEAGLEDIR}{BEAGLE} gt={input[0]} out={params.prefix} map={input[1]} ne=250000 nthreads={threads} window=2.0 overlap=0.1
+    '''
+
+# ok, now we have gzipped vcfs with no missing data (and also no quality, coverage, etc info -- so need to do all filtering above)
+# the next step is to polarize these SNPs
+# to do that we'll use est-sfs, which requires us to give the A,C,T,G counts for all our samples and, separately, for our outgroups
+# i have some code that gets us from haps format to that, so next lets convert our vcfs to haps format
+# we can do that with either bcftools convert or relate, let's just stick with bcftools for now
+
+IMPUTED_HAPS_CHR = VCF_CHR_KEEP_BIALLELIC_IMPUTED + '.hap.gz'
+SAMPLES_CHR = IMPUTED_HAPS_CHR.replace('.hap.gz','.samples')
+
+rule vcf_to_haps:
+  input:
+    expand(IMPUTED_HAPS_CHR, CHR=range(1,6)),
+    expand(SAMPLES_CHR, CHR=range(1,6))
+
+ruleorder: vcf_to_haps_chr > split_vcf_chr
+
+rule vcf_to_haps_chr:
+  input:
+    VCF_CHR_KEEP_BIALLELIC_IMPUTED
+  output:
+    IMPUTED_HAPS_CHR,
+    SAMPLES_CHR
+  params:
+    prefix = IMPUTED_HAPS_CHR.replace('.hap.gz','') #bcftools adds its own suffixs
+  resources:
+    time = math.floor(1*60/5) 
+  threads: math.floor(80/5)
+  shell:
+    '''
+    module load samtools/1.13
+    tabix -p vcf {input} #index imputed vcfs first, to suppress warnings
+    bcftools convert --threads {threads} --hapsample {params.prefix} {input}
+    '''
+
+# since the input to est-sfs also needs outgroup data, lets get the outgroup data into a convenient format too
+
+# ------------------- get bx-python --------------------
+# used to convert multi species alignments (maf) to fasta (fa)
+
+MAF_TO_FASTA = PROGDIR + 'bx-python/scripts/maf_to_concat_fasta.py'
+
+rule get_bxpython:
+  input:
+  output:
+    MAF_TO_FASTA
+  shell:
+    '''
+    git clone https://github.com/bxlab/bx-python.git {PROGDIR}bx-python
+    '''
 
 # ------------------- make fasta with outgroup genomes ---------------------
+# convert maf to fasta, which we can convert into est-sfs input format 
+# Arabidopsis lyrata, Boechera stricta, and Malcolmia maritima
 
-rule outgroup_fasta:
+OUTGROUP_MAF = DATADIR + 'Thal_ref_Boec_Lyra_Malc_outgroups_nodupes_orthoonly.maf' #multi-species alignment from Tyler Kent (Wright lab, University of Toronto)
+OUTGROUP_FASTA = DATADIR + 'Lyra_Boec_Malc.fa' #fasta with outgroup genomes
+
+rule maf_to_fasta:
   input:
-    DATADIR + 'Thal_ref_Boec_Lyra_Malc_outgroups_nodupes_orthoonly.maf' #multi-species alignment from Tyler Kent (Wright lab, University of Toronto)
+    OUTGROUP_MAF
   output:
-    DATADIR + 'Lyra_Boec_Malc.fa' #fasta with outgroup genomes
+    OUTGROUP_FASTA
   resources:
     time = 10 
   shell:
     '''
-    python {MAFtoFASTA} Lyra,Boec,Malc < {input[0]} > {output[0]}
+    python {MAF_TO_FASTA} Lyra,Boec,Malc < {input} > {output}
     '''
 
-# -------------------- make input file for est-sfs program ----------------------------- 
+# -------------------- make input for est-sfs ------------
+# ok, now we use a custom script to convert our hap and fa files into the input required by est-sfs
 
-est_pattern = haps_pattern.replace('haps','est')
-est_results = expand(est_pattern, CHR=chromosomes)
+HAPS_CHR = IMPUTED_HAPS_CHR.replace('.hap.gz','.hap')
 
-rule all_est_files:
+rule unzip_haps:
   input:
-    est_results
+    expand(HAPS_CHR, CHR=range(1,6))
 
-rule est_file:
+rule unzip_haps_chr:
   input:
-    DATADIR + 'Lyra_Boec_Malc.fa',
-    haps_pattern
+    IMPUTED_HAPS_CHR
   output:
-    est_pattern 
+    HAPS_CHR
   resources:
-    time = 10 
+    time = 5
+  threads: 1 
+  shell:
+    '''
+    module load samtools/1.13
+    bgzip -cd {input} > {output}
+    '''
+
+EST_INPUT_CHR = HAPS_CHR.replace('.hap','.est')
+
+rule est_input:
+  input:
+    expand(EST_INPUT_CHR, CHR=range(1,6)) 
+
+rule est_input_chr:
+  input:
+    OUTGROUP_FASTA,
+    HAPS_CHR 
+  output:
+    EST_INPUT_CHR 
+  resources:
+    time = 30 
   run:
     # load outgroup sequences
     out_seqs = []
@@ -323,13 +470,13 @@ rule est_file:
       with open(input[1], 'r') as f: #haps file to read
         for i,line in enumerate(f): #load line by line for memory sake
           data = line.split() #divide line into elements (separated by whitespace)
-          if i == 0:
-            nsamples = len(data) - 5 #number of samples
+          if i == 0: #pick any row to just do this once
+            nsamples = len(data) - 5 #number of haploid genomes (number of columns minus the first 5, which contain: CHR, ID, POS, REF, ALT)
           ref = data[3] #reference allele
           alt = data[4] #alternate allele
-          nalt = sum(list(map(int,data[5:]))) #number of alternate alleles (have to convert string to integers)
+          nalt = sum(list(map(int,data[5:]))) #number of alternate alleles (map converts strings to integers); assumes ref=0 and alt=1
           nref = nsamples - nalt #number of reference alleles (assumes biallelic)
-          counts = [0,0,0,0] #number of A,C,G,T
+          counts = [0,0,0,0] #number of A,C,G,T (order specified by est-sfs)
           for allele,count in [[ref,nref],[alt,nalt]]: #for ref and alt put the count in the right bin
             if allele == 'A':
               counts[0] = count
@@ -340,7 +487,7 @@ rule est_file:
             else:
               counts[3] = count
           outcounts = [[0,0,0,0] for _ in range(nouts)] #initialize
-          site = int(data[2]) - 1 #note that biopython starts from 0 but the site numbers in the haps file start with 1
+          site = int(data[2]) - 1 #take a look at this site in the outgroups; subtract one to move to python's 0 indexing 
           site = site + sum(chr_lens[:(int(wildcards.CHR) - 1)]) # add length of preceding chromosomes to find correct index in outgroup fasta	
           for j in range(nouts):
             allele = out_seqs[j][site]
@@ -354,777 +501,1369 @@ rule est_file:
               outcounts[j][3] = 1
           file.write(','.join(map(str,counts)) + ' ' + ' '.join([','.join(map(str,i)) for i in outcounts]) + '\n') #write in est format, line by line
 
-# ------------------- run est-sfs to get ancestral genome -----------------------------
+# good idea here to check that the files look ok, ie that the alignment worked and the major allele is often the allele found in lyrata -- they look good to me, phew!
 
-sfs_pattern = est_pattern.replace('est', 'sfs')
-pvalues_pattern = est_pattern.replace('est', 'pvalues')
+# -------------------- get est-sfs ---------------------
+# now download est-sfs
 
-pvalues_results = expand(pvalues_pattern, CHR=chromosomes)
+ESTSFS = 'est-sfs-release-2.04'
 
-rule all_est_sfs:
+rule get_estsfs:
   input:
-    pvalues_results
-
-rule est_sfs:
-  input: 
-    est_pattern,
-    SCRIPTDIR + 'config-kimura.txt', # choices for est-sfs program (edited version that comes with est-sfs) 
   output:
-    sfs_pattern, #site frequency spectrum
-    pvalues_pattern #probability of each base being ancestral
-  resources:
-    time = 60
+    PROGDIR + ESTSFS + '/est-sfs'
   shell:
     '''
-    module load gcc gsl #need gsl libraries
-    {ESTSFS} {input[1]} {input[0]} {SEEDFILE} {output[0]} {output[1]}
-
+    wget https://sourceforge.net/projects/est-usfs/files/{ESTSFS}.tar.gz -P {PROGDIR}
+    cd {PROGDIR}
+    tar -xzf {ESTSFS}.tar.gz
+    cd {ESTSFS}
+    module load gcc/9.2.0
+    module load gsl/2.5
+    make
     '''
 
-# -------------------- make reference genome from multi-species alignment ----------
+# ------------------ run est-sfs -----------------------
 
-rule reference_genome:
+# set up config and seed input files 
+CONFIG_FILE = 'scripts/estsfs-config.txt' 
+SEED_FILE = 'scripts/estsfs-seed.txt'
+
+rule estsfs_setup:
   input:
-    DATADIR + 'Thal_ref_Boec_Lyra_Malc_outgroups_nodupes_orthoonly.maf' #multi-species alignment from Tyler Kent (Wright lab, University of Toronto)
   output:
-    DATADIR + 'Thal.fa' #fasta with outgroup genomes
+    CONFIG_FILE,
+    SEED_FILE
   resources:
-    time = 10 
+    time = 1
+  threads: 1
   shell:
     '''
-    python {MAFtoFASTA} Thal < {input[0]} > {output[0]}
+    printf 'n_outgroup 3\nmodel 1\nnrandom 3' > {output[0]} #number of outgroups, model (1=kimura 2 parameter), number of times to find max likelihood (to ensure convergence)
+    echo '60179025' > {output[1]} 
     '''
 
-# ------------------- make ancestral genome from pvalues --------------------
+# est-sfs 2.04 has max number of snos 1e6, so need to chunk up the est files
+# we have max ~5e6 snps per chromosome, so lets split each into 10 chunks
+# note there is a trade-off here: more chunks means more parallel but est-sfs does use information across all sites to infer the evolutionary rate parameters and the uSFS, which are then used to infer ancestral states (so the more we chunk the less accurate we will be)
+# we also need to make sure we have some snps with outgroup info, otherwise est-sfs cant do its thing (so dont chunk too small)
 
-ancestral_chr_pattern = pvalues_pattern.replace('pvalues','fa')
+EST_INPUT_CHR_CHUNK = EST_INPUT_CHR + '_chunk{CHUNK}' 
+nchunks = 10
+chunks = ['%02d'%x for x in range(nchunks)]
 
-ancestral_chr_results = expand(ancestral_chr_pattern, CHR=chromosomes)
-rule all_ancestral_chromosomes:
+rule split_est:
   input:
-    ancestral_chr_results
+    expand(EST_INPUT_CHR_CHUNK, CHR=range(1,6), CHUNK=chunks)
 
-rule ancestral_chromosome:
+rule split_est_chr:
   input:
-    DATADIR + 'Thal.fa',
-    haps_pattern,
-    pvalues_pattern
+    EST_INPUT_CHR
   output:
-   ancestral_chr_pattern
+    expand(EST_INPUT_CHR_CHUNK, CHUNK=chunks, allow_missing=True)
   resources:
-    time = 10
-  run:
-    # load reference genome 
-    for seq_record in SeqIO.parse(input[0], "fasta"):
-      start = sum(chr_lens[:(int(wildcards.CHR) - 1)]) #start of chromosome
-      end = sum(chr_lens[:(int(wildcards.CHR))]) #end of chromosome
-      ref = seq_record.seq[start:end] #sequence of reference on chromosome
-    ref = ref.upper() #use all uppercase letters
-    # load site number and alleles at all SNPs
-    snps = []
-    with open(input[1], 'r') as g: #file to read reference and alternate allele from
-      for i,line in enumerate(g): #go line by line
-        data = line.split() #split up the elements
-        snps.append([int(data[2]),data[3],data[4]]) #append the site number and reference and alternate alleles
-    # now use est-sfs to decide which SNPs to flip
-    flip_snps = []
-    with open(input[2], 'r') as f: #file to read probability of reference allele being ancestral from
-      for i,line in enumerate(f): #load line by line for memory sake
-        data = line.split() #separate the elements
-        if int(data[0]) > 0: #skip the header
-          if float(data[2]) < 0.5: #if the probability that the reference allele is ancestral is less than 0.5 we make the alternate ancestral
-            n = int(data[1]) #index of snp 
-            flip_snps.append(snps[n])
-    # check
-    for i in np.random.choice(range(len(flip_snps)),10):
-      snp = flip_snps[i]
-      print(snp[1],ref[snp[0]-1]) #should match, check log
-    # flip snps
-    mutable_ref = ref.tomutable() #allow us to edit the sequence
-    for i in flip_snps:
-      mutable_ref[i[0]-1] = i[2] #flip the snps
-    ancestor = mutable_ref.toseq()
-    # save
-    record = SeqRecord(ancestor, id="ancestral 1001G sequence inferred by est-sfs;", description='outgroups: Lyrata, Boechera, and Malcolmia')
-    SeqIO.write(record, output[0], "fasta") #save as fasta
+    time = 1
+  threads: 1
+  shell:
+    '''
+    split -n l/{nchunks} -d -a2 {input} {input}_chunk
+    '''
 
-# ------------------- make sample file ------------------
+#why not also check that things look aligned here too - yep!
 
-sample_file = DATADIR + '1001G.sample' 
+# now we're ready to infer our ancestral state
+# with 10 chunks per chromosome this took 18.5 hours
 
-rule sample_file:
+USFS_CHR_CHUNK = EST_INPUT_CHR_CHUNK + '_usfs.txt' # we also get the uSFS but dont actually care about that here
+PVALUES_CHR_CHUNK = EST_INPUT_CHR_CHUNK + '_pvalues.txt'
+
+rule run_estsfs:
   input:
-    DATADIR + '1001G.fam'
+    expand(PVALUES_CHR_CHUNK, CHR=range(1,6), CHUNK=chunks)
+
+rule run_estsfs_chr:
+  input:
+    CONFIG_FILE,
+    EST_INPUT_CHR_CHUNK,
+    #SEED_FILE #dont include as input because it gets updated when run
   output:
-    sample_file
+    USFS_CHR_CHUNK,
+    PVALUES_CHR_CHUNK
   resources:
-    time = 10
-  run:
-    inds = np.genfromtxt(input[0], dtype="str")[:,1] #get list of individual IDs
-    with open(output[0], mode='w') as file:
-      writer = csv.writer(file, delimiter=' ') #space delimited
-      writer.writerow(['ID_1','ID_2','missing']) #header
-      writer.writerow(['0','0','0']) #for some reason relate starts with this null first row, https://myersgroup.github.io/relate/input_data.html
-      for i in inds:
-        data = np.hstack((i, 'NA', 0)) #add each individual as row, with NA signifying that these are haploids
-        writer.writerow(data)
-    file.close()
+    #time = math.floor(1*60/nchunks) #running a single instance took 30m, but when running 80 took just over 5 hours
+  threads: 1 
+  shell:
+    '''
+    module load gcc/9.2.0
+    module load gsl/2.5
+    {PROGDIR}{ESTSFS}/est-sfs {input[0]} {input[1]} {SEED_FILE} {output[0]} {output[1]} 
+    '''
 
-# -------------------- polarize snps in hap file -----------------------------
+# interpreting the lines in the pvalues file:
+# - the version
+# - the number of sites
+# - the model (1=kimura 2-param)
+# - the max log max likelihood of the model
+# - the log max likelihood of the model for each of the runs
+# - the evolutionary rates along each branch of the tree (2n-1, where n is the number of outgroups; see their fig 1 but note the switch of b=k and 0 indexing); we should see larger rates along longer branches
+# - the relative rate of transitions (A-G, C-T) vs transversions
+# - the column names: site number (0 indexed), Probability the major allele is ancestral, probability of the trees (the nucleotides at the two nodes, in our case the ancestor of thal and lyrata and the ancestor of thal, lyrata, and boechera; the order is [A,A], [A,C], [A,G], [A,T], [C,A], [C,C], [C,G], [C,T], etc., where the first index is the thal-lyrata ancestor; we should have 2^4 = 16)
+# - the data: line number, site number, p-major-anc, p[A,A], p[A,C], ...
 
-flipped_haps_pattern = haps_pattern.replace('.haps','_flipped.haps')
+# good to check that the log max likelihoods are similar across chromosomes and chunks
+# awk 'FNR==4 {print $3}' data/*pvalues.txt > data/check_MLLs.txt
+# see scripts/check_MLLs.ipynb for quick exploration of this to detect outliers (none) and a look at the uSFS (looks pretty sensible but perhaps some population structure (1001g vs non-1001g) causing one oddity)
 
-flipped_haps_results = expand(flipped_haps_pattern, CHR=chromosomes)
-rule all_flip_snps:
+# stitch the chunks back together and get rid of superfluous info
+PVALUES_CHR = PVALUES_CHR_CHUNK.replace('_chunk{CHUNK}','')
+
+rule merge_pvalues:
   input:
-    flipped_haps_results
+    expand(PVALUES_CHR, CHR=range(1,6))
 
-rule flip_snps:
+rule merge_pvalues_chr:
   input:
-    haps_pattern,
-    sample_file,
-    ancestral_chr_pattern
+    expand(PVALUES_CHR_CHUNK, CHUNK=chunks, allow_missing=True)
   output:
-    flipped_haps_pattern
+    PVALUES_CHR
+  resources:
+    time = 1
+  threads: 1
+  shell:
+    '''
+    awk 'FNR>8 {{print $3}}' {input} > {output} #remove first 8 lines and keep just 3rd column of remaining lines (prob major allele is ancestral) for each input file and concatenate into single output
+    '''
+
+# ----------------- polarize haps ------------------------
+
+HAPS_POLAR_CHR = HAPS_CHR + '_polarized.haps'
+
+rule polarize_haps:
+  input:
+    expand(HAPS_POLAR_CHR, CHR=range(1,6))
+
+rule polarize_haps_chr:
+  input:
+    EST_INPUT_CHR,
+    PVALUES_CHR,
+    HAPS_CHR
+  output:
+    HAPS_POLAR_CHR
   resources:
     time = 1 * 60
-  shell:
-    '''
-    {RELATE}/bin/RelateFileFormats \
-      --mode FlipHapsUsingAncestor \
-      --haps {input[0]} \
-      --sample {input[1]} \
-      --ancestor {input[2]} \
-      -o {DATADIR}1001G_chr{wildcards.CHR}_flipped 
-    '''
+  threads: 1
+  run:
+    nucs = ['A', 'C', 'G', 'T'] #order of nucleotides in est
+    nflips = 0
+    with open(input[0],'r') as f: #est input file with counts of alleles 
+      with open(input[1],'r') as g:  #pvalues from est-sfs
+        with open(input[2],'r') as h: #haps file
+          with open(output[0],'w') as out: #polarized haps file
+            for i, (est, p, hap) in enumerate(zip(f, g, h)): #one line at a time
+              # get major and minor alleles
+              n = [int(i) for i in est.split(' ')[0].split(',')] #count of nucleotides
+              major = nucs[n.index(max(n))]
+              minor = nucs[n.index(min([i for i in n if i>0]))]
+              # get haps
+              haps = hap.split(' ')
+              #special cases of a fixed allele or equal frequencies will produce major==minor
+              snp = True
+              fix = False
+              if major == minor:
+                print(haps[:5])
+                print(est)
+                try:
+                  [major, minor] = [nucs[i] for i,c in enumerate(n) if c == max(n)] #assign major and minor in order of nucs list
+                  print('equal frequencies at snp %d, so using sister taxa'%i)
+                except:
+                  print('snp %d not a snp, so not writing to outfile \n'%i)
+                  snp = False
+                if snp:
+                  no = [int(i) for i in est.split(' ')[1].split(',')] #nucleotide counts for closest outgroup
+                  if sum(no) == 1:
+                    fix = True
+                  else:
+                    print('no info from sister taxa, so moving to next outgroup')
+                    no = [int(i) for i in est.split(' ')[2].split(',')] #next closest outgroup
+                    if sum(no) == 1:
+                      fix = True
+                    else:
+                      print('no info from cousin taxa, so moving to next outgroup')
+                      no = [int(i) for i in est.split(' ')[3].split(',')] #next closest outgroup
+                      if sum(no) == 1:
+                        fix = True
+                      else:
+                        print('no info from any outgroup, so choosing major as first allele in nucs list')
+                        print(major, minor)
+                        print(p)
+                        print('\n')
+              if fix:
+                if major == nucs[no.index(max(no))]: #if the major allele matches the outgroup
+                  # done
+                  print(major, minor)
+                  print('\n')                            
+                elif minor == nucs[no.index(max(no))]: #if the minor matches the outgroup
+                  #switch
+                  tmp = major
+                  major = minor
+                  minor = tmp 
+                  print(major, minor)
+                  print('\n')
+                else:
+                  print('no help from outgroups, sticking with nucs order')
+                  print(major, minor)
+                  print('\n')
+              # set up next line of polarized haps file
+              if snp:
+                reference = haps[3] #reference allele
+                alternate = haps[4] #alternate allele
+                #check
+                error = False
+                if reference!= major and reference != minor:
+                  error = True
+                if alternate!= major and alternate != minor:
+                  error = True
+                if error:
+                  print('error: reference or alternate not matching major or minor at snp %d'%i)
+                  break
+                #if the probability that the major allele is ancestral is greater or equal to 0.5 
+                ancestral = major
+                derived = minor
+                if float(p) < 0.5:
+                  ancestral = minor
+                  derived = major
+                #only need to flip if reference is not ancestral
+                if reference != ancestral:
+                  nflips += 1
+                  haps[3] = ancestral #make the reference allele ancestral
+                  haps[4] = derived #make the alternate allele derived
+                  haps[5:] = [1 - int(i) for i in haps[5:]] #flip the haps (make 0 -> 1 and 1 -> 0)
+                  hap = (' ').join(map(str,haps)) + '\n'
+                # write to outfile
+                out.write(hap)
+    print(nflips)
 
-# --------------------- download recombination map -----------------------
 
-map_pattern = DATADIR + 'arab_chr{CHR}_map_loess.txt'
+# ----------------- make ancestor fasta --------------
+# now we need to extract the inferred ancestral sequence from the pvalues output by est-sfs
 
-map_results = expand(map_pattern, CHR=chromosomes)
+#REFERENCE = 
+#ANCESTOR_CHR = PVALUES_CHR + '_ancestor.fa'
+#
+#rule make_ancestor:
+#  input:
+#    expand(ANCESTOR_CHR, CHR=range(1,6))
+#
+#rule ancestor_chr:
+#  input:
+#    EST_INPUT_CHR,
+#    PVALUES_CHR
+#  output:
+#    ANCESTOR_CHR
+#  resources:
+#    time = 10
+#  run:
+#    # get major and minor alleles 
+#    majors = []
+#    minors = []
+#    nucs = ['A','C','G','T'] #order of nucleotides in .est files
+#    with open(input[0], 'r') as f: #.est file
+#      for line in f: #go line by line
+#        n = [int(i) for i in line.split(' ')[0].split(',')] #count of nucleotides A,C,G,T
+#        majors.append(nucs[n.index(max(n))]) #major allele
+#        minors.append(nucs[n.index(min([i for i in n if i>0]))]) #minor allele 
+#    # decide which allele is ancestral
+#    ancestor = majors #start by assuming the major allele is ancestral 
+#    with open(input[1], 'r') as f: #pvalues file
+#      for i,line in enumerate(f): #go line by line
+#        if float(line) < 0.5: #if the probability that the major allele is ancestral is less than 0.5 
+#            ancestor[i] = minors[i] #then we make the minor allele ancestral
+#    # save as fasta
+#    record = SeqRecord(ancestor, id="ancestral Arabidopsis thaliana sequence inferred by est-sfs;", description='outgroups: Arabidopsis lyrata, Boechera stricta, and Malcolmia maritima') #make sequence
+#    SeqIO.write(record, output[0], "fasta") #save sequence
 
-rule all_maps:
+# -------------------- relate input ---------------
+# now we have our filtered, imputed, polarized haps file for each chromosome, ready to be given to relate
+# relate also requires a sample file and genetic map
+# - we already have the sample files, which were created by bcfools when we converted from vcf to haps/sample (note that they call the files .hap and .samples while relate uses .haps and .sample :D)
+# - we have two genetic maps already, but we'll need to make a third for relate, with position (b), recombination rate (cM/Mb), recombination position (cM)
+
+RELATE_MAPS_CHR = MAP_CHR_PLINK + '_relate.map'
+
+rule make_relate_maps:
   input:
-    map_results
+    expand(RELATE_MAPS_CHR, CHR=range(1,6))
 
-rule get_maps:
+rule make_relate_maps_chr:
   input:
+    MAP_CHR,
+    MAP_CHR_PLINK
   output:
-    DATADIR + 'salome2012_maps.tar.gz',
-    map_results
-  shell:
-    """
-    wget --no-check-certificate https://www.eeb.ucla.edu/Faculty/Lohmueller/data/uploads/salome2012_maps.tar.gz -P {DATADIR}
-    tar -xf {DATADIR}salome2012_maps.tar.gz -C {DATADIR}
-    """
-
-# --------------------- infer tree sequence ----------------------------------
-
-relate_pattern = haps_pattern.replace('.haps', '_2Ne{twoNe}_u{u}.{filetype}')
-
-filetypes = ['anc', 'mut']
-relate_results = expand(relate_pattern, CHR=chromosomes, twoNe=twoNes, u=us, filetype=filetypes)
-
-rule all_relate:
-  input:
-    relate_results
-
-rule relate:
-  input:
-    flipped_haps_pattern,
-    sample_file,
-    map_pattern  
-  output:
-    expand(relate_pattern, filetype=filetypes, allow_missing=True)
+    RELATE_MAPS_CHR
   resources:
-    time =  18 * 60 
-  #wildcard_constraints:
-  #  u = "[-+e0-9]"
-  #threads: 8
+    time = 15
+  threads: 1
   shell:
-    """
-    #{RELATE}/scripts/RelateParallel/RelateParallel.sh #parallelize
-    {RELATE}/bin/Relate --mode All \
-      -m {wildcards.u} \
-      -N {wildcards.twoNe} \
-      --haps {input[0]} \
-      --sample {input[1]} \
-      --map {input[2]} \
-      --seed 1 \
-      --memory 175 \
-      -o 1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}
-    #  --threads {threads}
-    #  since we need to run relate in the working directory, now move output to data directory
-    mv 1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}.* {DATADIR}
-    """
+    '''
+    tempfile="{DATADIR}map{wildcards.CHR}.tmp"
+    paste <(tail -n +2 {input[0]}) {input[1]} | awk '{{print $2, $3, $7}}' > $tempfile #this is probably inefficient, but get the job done - take header off salome map, combine with plink map, then take columns we want
+    cat <(echo "pos COMBINED_rate Genetic_Map") $tempfile > {output} #add the header expected from Relate
+    rm -f $tempfile #tidy up 
+    '''
 
-# ---------------------- make poplabels file ------------------------------
+# ALSO!!! we have some non-contemporary samples, so we need to supply a --sample-ages file too
+# not sure if this is supposed to be in years or generations, but doesn't matter in our case
+# we need a time for every haploid genome on a separate line, presumably paired by diploid individual and in the order they are found in the samples file
+# now to find the ages of the herbaria samlpes... see table S1 in Durvasula et al PNAS
+# we may also want to date the other samples since 1001g was a while ago relative to cvi?
+# dont see the dates for fresh samples in durvasula
+# the cvi samples were collected between 2012 and 2017
+# think it's safe to say these samples can all be marked as contemporaries, with age 0
+# the 1001G collection dates are in the metadata
 
-poplabels_file = DATADIR + '1001G.poplabels'
+lOOlG_METADATA = DATADIR + '1001genomes-accessions.txt'
 
+rule get_lOOlg_metadata:
+  input:
+  output:
+    lOOlG_METADATA
+  shell:
+    '''
+    #wget https://github.com/hagax8/arabidopsis_viz/blob/master/data/dataframe_1001G.csv -P {DATADIR} #no dates
+    #wget https://raw.githubusercontent.com/HancockLab/CVI/master/data/1001genomes-accessions.txt -P {DATADIR} #unofficial source? 
+    wget https://tools.1001genomes.org/api/accessions.csv?query=SELECT%20*%20FROM%20tg_accessions%20ORDER%20BY%20id -P {DATADIR}
+    mv {DATADIR}accessions.csv\?query\=SELECT\ \*\ FROM\ tg_accessions\ ORDER\ BY\ id {output}
+    '''
+
+# now let's learn some unix and extract the sample ids and ages from this metadata using too many commands
+lOOlG_AGES = DATADIR + '1001g_ages.txt'
+
+rule get_lOOlg_ages:
+  input:
+    lOOlG_METADATA
+  output:
+    lOOlG_AGES
+  shell:
+    '''
+    # get the date column
+    #awk -F ',"' '{{print $9}}' {input} > ages.tmp #note there are commas within some entries so include a double qoute in separator to access correct column
+    # a quick look at the output shows that we have all sorts of date formats, as well as lots of missing entries
+    # grep -E '[0-9]{{4}}' -v ages.tmp #find lines that don't have a four digit number (year)
+    # since these lines have year "99" or no data, which leaves just a double qoute, we can get all the years (and missing data) with
+    #grep -E '[0-9]{{4}}|99|^"' -o ages.tmp > ages2.tmp
+    # and then to get everything into the same format we use
+    #sed '/^99/{{s!99!1999!g}}' ages2.tmp | sed '/^\"/{{s!"!!g}}' > ages3.tmp #this leaves empty lines where there is no data
+    # now take max minus number to get age of sample (we assume all samples without a date are contemporary)
+    #awk '{{if($1>0) {{print MAX - $1}} else {{print 0}}}}' MAX="$(sort -n ages3.tmp | tail -n1)" ages3.tmp > ages4.tmp
+    # now pair these ages up with ids
+    #cut {input} -d, -f1 | paste -d' ' - ages4.tmp > {output} 
+    # and clean up
+    #rm *.tmp
+    # take a look at the sorted ages if you want -- note there are 7 samples that are >50 years old 
+    # sort -n -k 2 {output}
+    #actually, just asked Stephen Wright and he said all these lines have been propagating since the collection date (perhaps a few less gens, but not many), so set all ages to 0
+    awk -F ',"' '{{print $1, 0}}' {input} > {output}
+   '''
+
+# next let's look at the Fulgione samples
+FULGIONE_AGES = DATADIR + 'fulgione_ages.txt'
+rule get_fulgione_ages:
+  input:
+  output:
+    FULGIONE_AGES
+  shell:
+    '''
+    # get the list of sample ids
+    wget https://raw.githubusercontent.com/HancockLab/CVI/master/data/cvi_samples_plusCVI0.txt
+    # remove CVI-0, which is in the 1001G list
+    sed '/6911/d' cvi_samples_plusCVI0.txt > cvi_samples.txt
+    # the paper says these were all sampled between 2012 and 2017, so let's treat them all as contemporary
+    awk '{{print $1, 0}}' cvi_samples.txt > {output}
+    # clean up
+    rm cvi_samples*txt 
+    '''
+
+# now the samples from durvasula
+# based on table S1 in durvasula all samples are contemporary except those from the herbaria
+DURVASULA_AGES = DATADIR + 'durvasula_ages.txt'
+rule get_durvasula_ages:
+  input:
+  output:
+    DURVASULA_AGES
+  shell:
+    '''
+    # get the list of sample ids and labels from the CVI paper
+    wget https://raw.githubusercontent.com/HancockLab/CVI/master/data/moroccan_paper_IDs.txt
+    # all we care about are the IDs
+    awk '{{print $1}}' moroccan_paper_IDs.txt > mor_IDs.txt
+    # notice that we do not have all 79 samples from this paper listed
+    # wc -l mor_IDs.txt
+    # we are missing the remaining 15
+    # find out what we are missing
+    # cat {lOOlG_AGES} {FULGIONE_AGES} mor_IDs.txt | cut -d' ' -f1 | grep -xvf - {IDS_KEPT} > missing.txt
+    # get pairing of ids and labels from CVI paper
+    # wget https://raw.githubusercontent.com/HancockLab/CVI/master/data/idsToPlants_19-04-18.txt
+    # now find the missing lines
+    # grep -f missing.txt idsToPlants_19-04-18.txt
+    # and we see the 9 herbaria samples (AH*), which have ages in table S1 of durvasula, as well as a few others:
+    # 21131	Mt0-1	2113_A #this must be Ma0 from durvasula, which was sequenced 4 times (for error rate estimates), called Mt-0 in NASC?
+    # 21132	Mt0-2	2113_B
+    # 21133	Mt0-3	2113_C
+    # 21134	Mt0-4	2113_D
+    # 21135	Aitba	2113_E #used in Durvasula (sup mat line 18) from NASC: https://arabidopsis.info
+    # 21137	Ita-0	2113_G #used in Durvasula (sup mat line 18) from NASC
+    # 21138	Plateres	2113_H #used in Durvasula (sup mat line 24)
+    # 21139	Toufl-1	2113_I #used in Durvasula (sup mat line 18) from NASC
+    # 211399	Tnz2-75925	2113_J #used in Durvasula (sup mat line 23)
+    # 37472	M_nma-Meh-4_exH7-2 #Meh4 is in Durvasula table S1, is this just part of the genome? there is another sample in the list called H7-2_exM_nma-Meh-4 (37473)  
+    # 37468	M_sma-Elk-5_exH2-1 #Elk5 is in Durvasula table S1. note there is also H2-1_exM_sma-Elk-5 (37467) in the list.
+    # 35520	Tanz-4003 #used in Durvasula (sup mat line 23)  
+    # given that we know nothing about the sample year of the non-herbaria lines, let's take them all to be contemporary, but we'll need to supply ages for the herbaria samples
+    # so let's add the missing non-herbaria samples to the list
+    echo -e "21131 \n21132 \n21133 \n21134 \n21135 \n21137 \n21138 \n21139 \n211399 \n37472 \n37468 \n35520" >> mor_IDs.txt
+    # then give 0 ages to all samples in the list
+    awk '{{print $1, 0}}' mor_IDs.txt > {output} 
+    # then add the herbaria ids and ages
+    # grep -E 'AH' idsToPlants_19-04-18.txt
+    # AH0001	ZA-h1
+    # AH0002	ZA-h2
+    # AH0003	ZA-h3
+    # AH0004	ZA-h4
+    # AH0006	ZA-h5
+    # AH0007	Tanz-h1
+    # AH0008	Tanz-h2
+    # AH0009	Tanz-h3
+    # AH0011	Alg-h1
+    echo "AH0001 $(expr 2012 - 1830)" >> {output}
+    echo "AH0002 $(expr 2012 - 1830)" >> {output}
+    echo "AH0003 $(expr 2012 - 1830)" >> {output}
+    echo "AH0004 $(expr 2012 - 1896)" >> {output}
+    echo "AH0006 $(expr 2012 - 1830)" >> {output}
+    echo "AH0007 $(expr 2012 - 1829)" >> {output}
+    echo "AH0008 $(expr 2012 - 1985)" >> {output}
+    echo "AH0009 $(expr 2012 - 1985)" >> {output}
+    echo "AH0011 $(expr 2012 - 1937)" >> {output}
+    # clean up
+    rm moroccan_paper_IDs.txt mor_IDs.txt
+    # note there are actually 85 sample ids (because some samples have been sequenced multiple times)
+    # wc -l {output} 
+    '''
+
+# now make sample ages file for relate
+# note we dont need a separate file for each chromosome but just being lazy...
+SAMPLE_AGES_CHR = HAPS_POLAR_CHR + '_sample-ages.txt'
+
+rule make_sample_ages:
+  input:
+    expand(SAMPLE_AGES_CHR, CHR=range(1,6))
+
+rule make_sample_ages_chr:
+  input:
+    lOOlG_AGES,
+    FULGIONE_AGES,
+    DURVASULA_AGES,
+    SAMPLES_CHR
+  output:
+    SAMPLE_AGES_CHR
+  shell:
+    '''
+    # combine ages from the three papers together
+    cat {input[0]} {input[1]} {input[2]} > temp.txt
+    # drop the samples we havent kept in our haps file
+    grep -vf {IDS_DROPPED} temp.txt > temp2.txt
+    # this leaves 3 more samples than we want!
+    # wc -l {IDS_KEPT} temp2.txt
+    # these are our 3 extra samples
+    # cut -d' ' -f1 temp2.txt | grep -xvf {IDS_KEPT} -
+    # they are all in durvasula 
+    # grep -E '37473|37457|37467' data/*ages*
+    # 37473 and 37467 are the two genomes that appear to be in two pieces each, as described above
+    # but what is 37457?
+    # wget https://raw.githubusercontent.com/HancockLab/CVI/master/data/idsToPlants_19-04-18.txt
+    # grep -E '37457' idsToPlants_19-04-18.txt
+    # ok, this one was contaminated 
+    # so let's remove these and we have a full list
+    sed '/37473/d;/37457/d;/37467/d' temp2.txt > temp3.txt
+    # check
+    # wc -l temp3.txt {IDS_KEPT}
+    # now we need to get this in the same order as the samples are in our haps/sample files
+    # our sample file is in this order
+    tail -n +3 {input[3]} | cut -d' ' -f1 > temp4.txt
+    # to join with the ages we're going to have to sort, but to preserve order first add the row number
+    awk '{{print $1, NR}}' temp4.txt > temp5.txt
+    # now sort
+    sort -n -k1 temp5.txt > temp6.txt
+    sort -n -k1 temp3.txt > temp7.txt
+    # and join
+    join temp6.txt temp7.txt > temp8.txt
+    # sort by original row number
+    sort -n -k2 temp8.txt > temp9.txt
+    # and drop the ids and row numbers
+    cut -d' ' -f3 temp9.txt > temp10.txt
+    # finally, relate requires a time for each haploid genome, so we print every line twice to finally get our desired output
+    sed 'p' temp10.txt > {output}
+    # clean up
+    rm temp*
+    '''
+
+# -------------------- get relate ------------------
+
+RELATE = PROGDIR + 'relate/'
+
+rule get_relate:
+  input:
+  output:
+   RELATE + 'bin/Relate'
+  resources:
+    time = 1
+  threads: 1
+  shell:
+    '''
+    git clone https://github.com/MyersGroup/relate.git
+    cd relate/build
+    module load cmake/3.21.4 gcc/8.3.0 gsl/2.5
+    cmake ..
+    make
+    #cd -
+    #mv relate/ {PROGDIR} #for some reason this fails with 'file exists', even when it doesnt exist (or so it seems), so i did this last step manualy
+    ''' 
+
+# ------------------ run relate ----------------------
+# initial mutation rate and effective population size from stdpopsim: https://popsim-consortium.github.io/stdpopsim-docs/stable/catalog.html#sec_catalog_AraTha
+# note that relate's N variable is 2Ne, so we use N=20000 instead of N=10000
+# having trouble with oom error: with RelateParallel we get this even when --memory set as low as 50GB, but setting it to 100GB seems to work with the non-parallel version (Leo: it is mem per thread)
+# 20 threads with 5gb mem each used max 135gb mem, so could probably do 25 threads. this was fastest so far but only finshed 2/8 chunks of smallest chromosome. try parallelizing manually or with relate_slurm.sh
+# since RelateSlurm.sh sends jobs to SLURM, just run this job locally (ie don't use --profile slurm). but getting errors and the slurm_options given are per job, but some jobs take minutes and others closer to a day (likely). so i think better to manually parallelize following outline on relate website
+
+#PREFIX_CHR = HAPS_POLAR_CHR
+#ANC_CHR = PREFIX_CHR + '.anc'
+#MUT_CHR = PREFIX_CHR + '.mut'
+#
+#rule run_relate:
+# input:
+#   expand(ANC_CHR, CHR=range(1,6)),
+#   expand(MUT_CHR, CHR=range(1,6))
+    
+#rule run_relate_chr:
+#  input:
+#    HAPS_POLAR_CHR,
+#    SAMPLES_CHR,
+#    RELATE_MAPS_CHR,
+#    SAMPLE_AGES_CHR
+#  output:
+#    ANC_CHR,
+#    MUT_CHR
+#  params:
+#    prefix = PREFIX_CHR.replace(DATADIR,'') #relate adds its own suffixs and needs to output into current directory
+#  resources:
+#    time = 24*60 #relate took 18 hours with the 1001g data last time, using 175g of memory and 1 thread (not parallelized) per chromosome
+#  threads: 80
+#  shell:
+#    '''
+#    module load gcc #need this to run on compute nodes
+#    TMPDIR="relate_chr{wildcards.CHR}"
+#    mkdir $TMPDIR
+#    cd $TMPDIR 
+#    #../{RELATE}bin/Relate --mode All 
+#    #../{RELATE}scripts/RelateParallel/RelateParallel.sh --threads {threads}
+#    #../{RELATE}scripts/RelateSlurm/RelateSlurm.sh 
+#    #/home/m/mmosmond/mmosmond/scratch/projects/spacetrees/revision/thaliana/{RELATE}scripts/RelateSlurm/RelateSlurm.sh
+#    /home/m/mmosmond/mmosmond/relate/scripts/RelateSlurm/RelateSlurm.sh \
+#      --haps ../{input[0]} \
+#      --sample ../{input[1]} \
+#      --map ../{input[2]} \
+#      --sample_ages ../{input[3]} \
+#      -m 7e-9 \
+#      -N 20000 \
+#      -o {params.prefix} \
+#      --slurm_options "--time=1:00:00 --nodes=1 --ntasks=1"
+#      #--seed 1 \
+#      #--memory 5 \
+#    #mv {params.prefix}.mut {params.prefix}.anc ../{DATADIR}
+#    #cd - 
+#    #rm -rf $TMPDIR
+#    '''
+
+# manually parallelizing instead
+RELATE_DIR_CHR = HAPS_POLAR_CHR.replace(DATADIR,'').replace('.haps','_relate/') #directories for relate to run in, for each chromosome
+PREFIX = 'chunks' #subdirectory where relate puts files
+RELATE_LOG_DIR = 'relate-log/' #directory to log relate's progress (needed because the steps below delete and update previous outputs)
+
+# first we chunk up each chromosome
+CHUNKS_CHR = RELATE_LOG_DIR + 'chunks_chr{CHR}.txt' #dummy file to say job was done
+
+rule chunks:
+  input:
+    expand(CHUNKS_CHR, CHR=CHRS)
+
+rule chunks_chr:
+  input:
+    HAPS_POLAR_CHR,
+    SAMPLES_CHR,
+    RELATE_MAPS_CHR
+  output:
+    CHUNKS_CHR 
+  params:
+    directory = RELATE_DIR_CHR
+  threads: 1
+  shell:
+    '''
+    mkdir -p {params.directory}
+    cd {params.directory}
+    ../{RELATE}bin/Relate \
+      --mode MakeChunks \
+      --haps ../{input[0]} \
+      --sample ../{input[1]} \
+      --map ../{input[2]} \
+      -o {PREFIX} \
+      --memory 10
+    cd -
+    mkdir -p {RELATE_LOG_DIR}
+    touch {output}
+    '''
+# used 15mins
+# snakemake chunks --profile slurm --groups chunks_chr=chunk --group-components chunk=5
+
+# find out how many chunks we have
+num_chunks_chr = []
+for CHR in CHRS:
+  n = 0
+  for file in glob.glob(RELATE_DIR_CHR.replace('{CHR}', str(CHR)) + "/**", recursive=True):
+    if 'parameters_' in file:
+      n += 1
+  num_chunks_chr.append(n)
+#print(num_chunks_chr)
+
+# now we paint the chunks
+PAINT_CHR_CHUNK = RELATE_LOG_DIR + 'paint_chr{CHR}_chunk{CHUNK}.txt' #dummy file
+
+#print(expand(expand('CHR{{CHR}}_CHUNK{CHUNK}', CHUNK=range(num_chunks_chr[CHR-1])), CHR=range(1,6)))
+#print(['CHR%d_CHUNK%d' %(i,j) for i in range(1,6) for j in range(num_chunks_chr[i-1])])
+# cant figure out how to expand different chromosomes to different numbers of chunks, so doing a simple list comprehension below instead
+rule paint:
+  input:
+    [PAINT_CHR_CHUNK.replace('{CHR}',str(i)).replace('{CHUNK}',str(j)) for i in CHRS for j in range(num_chunks_chr[i-1])] 
+
+rule paint_chr_chunk:
+  input:
+    CHUNKS_CHR
+  output: 
+    PAINT_CHR_CHUNK
+  params:
+    directory = RELATE_DIR_CHR
+  threads: 1 
+  shell:
+    '''
+    cd {params.directory}
+    ../{RELATE}bin/Relate \
+      --mode Paint \
+      --chunk_index {wildcards.CHUNK} \
+      -o {PREFIX}
+    cd -
+    touch {output}
+    '''
+# used 90mins
+# snakemake paint --profile slurm --groups paint_chr_chunk=paint --group-components paint=24 --jobs 1 
+
+#ok, so i think there is an error on line 100 of relate/include/pipelines/Relate.cpp, and the file name should start with the output path "file_out". but this only affects us when we don't provide first and last sections, so let's avoid the error and provide those manually (also parallelizing more)
+# find out how many sections each chunk has
+DIR = RELATE_DIR_CHR + PREFIX + '/chunk_{CHUNK}/paint/**'
+num_sections_chunk_chr = []
+for CHR in CHRS:
+  num_sections_chunk = []
+  for CHUNK in range(num_chunks_chr[CHR-1]):
+    n = 0
+    for file in glob.glob(DIR.replace('{CHR}', str(CHR)).replace('{CHUNK}',str(CHUNK)), recursive=True):
+      if '.bin' in file:
+        n += 1
+    if n == 0: #can happen because find_branches below removes paint files
+      for file in glob.glob(DIR.replace('{CHR}', str(CHR)).replace('{CHUNK}', str(CHUNK)).replace('/paint',''), recursive=True):
+        if '.anc' in file:
+          n += 1
+    num_sections_chunk.append(n)
+  num_sections_chunk_chr.append(num_sections_chunk)
+#print(num_sections_chunk_chr)
+
+# infer topology of each section
+TOPO_CHR_CHUNK_SECTION = RELATE_LOG_DIR + 'topo_chr{CHR}_chunk{CHUNK}_section{SECTION}.txt' #dummy file because anc/mut files get updated by later jobs
+
+rule topo:
+  input:
+    [TOPO_CHR_CHUNK_SECTION.replace('{CHR}',str(i)).replace('{CHUNK}',str(j)).replace('{SECTION}',str(k)) for i in CHRS for j in range(num_chunks_chr[i-1]) for k in range(num_sections_chunk_chr[i-1][j])]
+
+rule topo_chr_chunk_section:
+  input:
+    PAINT_CHR_CHUNK
+  output: 
+    TOPO_CHR_CHUNK_SECTION
+  params:
+    directory = RELATE_DIR_CHR
+  threads: 1 
+  shell:
+    '''
+    cd {params.directory}
+    ../{RELATE}bin/Relate \
+      --mode BuildTopology \
+      --chunk_index {wildcards.CHUNK} \
+      --first_section {wildcards.SECTION} \
+      --last_section {wildcards.SECTION} \
+      -o {PREFIX}
+    cd -
+    touch {output}
+    '''
+# used 30mins
+# snakemake topo --groups topo_chr_chunk_section=topo --group-components topo=10 --profile slurm --keep-going --jobs 20
+
+# now we find equivalent branches and propogate mutations
+BRANCHES_CHR_CHUNK = RELATE_LOG_DIR + 'find-branches_chr{CHR}_chunk{CHUNK}.txt' #dummy file since this step updates existing files
+
+rule find_branches:
+  input:
+    [BRANCHES_CHR_CHUNK.replace('{CHR}',str(i)).replace('{CHUNK}',str(j)) for i in CHRS for j in range(num_chunks_chr[i-1])] 
+
+rule find_branches_chr_chunk:
+  input:
+    TOPO_CHR_CHUNK_SECTION.replace('{SECTION}','0') #just supply the first section for simplicity
+  output: 
+    BRANCHES_CHR_CHUNK
+  params:
+    directory = RELATE_DIR_CHR
+  threads: 1 
+  resources:
+    time = 15
+  shell:
+    '''
+    cd {params.directory}
+    ../{RELATE}bin/Relate \
+      --mode FindEquivalentBranches \
+      --chunk_index {wildcards.CHUNK} \
+      -o {PREFIX}
+    cd -
+    touch {output} #make dummy file
+    '''
+# used 60mins
+# snakemake find_branches --profile slurm --groups find_branches_chr_chunk=branches --group-components branches=4 --jobs 6
+
+# now we estimate branch lengths
+BRANCH_LENGTHS_CHR_CHUNK_SECTION = RELATE_LOG_DIR + 'branch-lengths_chr{CHR}_chunk{CHUNK}_section{SECTION}.txt'
+
+rule branch_lengths:
+  input:
+    [BRANCH_LENGTHS_CHR_CHUNK_SECTION.replace('{CHR}',str(i)).replace('{CHUNK}',str(j)).replace('{SECTION}',str(k)) for i in CHRS for j in range(num_chunks_chr[i-1]) for k in range(num_sections_chunk_chr[i-1][j])]
+
+rule branch_lengths_chr_chunk_section:
+  input:
+    BRANCHES_CHR_CHUNK
+  output: 
+    BRANCH_LENGTHS_CHR_CHUNK_SECTION
+  params:
+    directory = RELATE_DIR_CHR
+  threads: 1 
+  shell:
+    '''
+    cd {params.directory}
+    ../{RELATE}bin/Relate \
+      --mode InferBranchLengths \
+      -m 7e-9 \
+      -N 20000 \
+      --chunk_index {wildcards.CHUNK} \
+      --first_section {wildcards.SECTION} \
+      --last_section {wildcards.SECTION} \
+      -o {PREFIX}
+    cd -
+    touch {output}
+    '''
+# can fit about 40 on a node and some take >2h -- update: think its safe to run 80 on a node but beware vastly different run times, some take an hour or two, others almost 5 (so far)
+# used 360mins
+# snakemake branch_lengths --profile slurm --groups branch_lengths_chr_chunk_section=lengths --group-components lengths=40 --jobs 20
+# just one didnt make it (chr2, chunk0, section0), and needed just over 7hours to run
+# but got error combining chr 1 below, so reran all those with 8h, and that worked
+
+# combine sections 
+COMBINED_CHR_CHUNK = RELATE_LOG_DIR + 'combined_chr{CHR}_chunk{CHUNK}.txt'
+
+rule combine_sections:
+  input:
+    [COMBINED_CHR_CHUNK.replace('{CHR}',str(i)).replace('{CHUNK}',str(j)) for i in CHRS for j in range(num_chunks_chr[i-1])] 
+
+rule combine_sections_chr_chunk:
+  input:
+    BRANCH_LENGTHS_CHR_CHUNK_SECTION.replace('{SECTION}','0') #just give first filename
+  output: 
+    COMBINED_CHR_CHUNK
+  params:
+    directory = RELATE_DIR_CHR
+  threads: 1 
+  shell:
+    '''
+    cd {params.directory}
+    ../{RELATE}bin/Relate \
+      --mode CombineSections \
+      -N 20000 \
+      --chunk_index {wildcards.CHUNK} \
+      -o {PREFIX}
+    cd -
+    touch {output}
+    '''
+# just take a couple minutes each, and use ~35GB
+
+# finalize output
+FINAL_CHR = RELATE_LOG_DIR + 'finalize_chr{CHR}.txt'
+
+rule finalize:
+  input:
+    expand(FINAL_CHR, CHR=CHRS)
+
+rule finalize_chr:
+  input:
+    COMBINED_CHR_CHUNK.replace('{CHUNK}','0')
+  output: 
+    FINAL_CHR
+  params:
+    directory = RELATE_DIR_CHR
+  threads: 1 
+  shell:
+    '''
+    cd {params.directory}
+    ../{RELATE}bin/Relate \
+      --mode Finalize \
+      -o {PREFIX}
+    cd -
+    touch {output}
+    '''
+# take 30mins and 30GB each
+
+# now move these files to datadir and rm directories (could have combined with above but did this after)
+RELATE_TREES_CHR = DATADIR + RELATE_DIR_CHR.replace('/','') + '.{END}'
+ANCMUT = ['anc','mut']
+
+rule tidy_up:
+  input:
+    expand(RELATE_TREES_CHR, CHR=CHRS, END=ANCMUT)
+  shell:
+    '''
+    rm -rf {RELATE_LOG_DIR}
+    '''
+
+rule tidy_up_chr:
+  input:
+    FINAL_CHR
+  output:
+    expand(RELATE_TREES_CHR, END=ANCMUT, allow_missing=True)
+  params:
+    directory = RELATE_DIR_CHR
+  shell:
+    '''
+    mv {params.directory}{PREFIX}.anc {output[0]}
+    mv {params.directory}{PREFIX}.mut {output[1]}
+    rm -rf {params.directory}
+    '''
+# instantaneous
+
+# now compress these files for storage and sharing
+TREE_DIR = DATADIR + 'relate_trees/'
+COMPRESSED_RELATE_TREES_CHR = TREE_DIR + 'chr{CHR}.tar.gz' 
+
+rule compress_trees:
+  input:
+    expand(COMPRESSED_RELATE_TREES_CHR, CHR=CHRS)
+
+rule compress_trees_chr:
+  input:
+    expand(RELATE_TREES_CHR.replace(DATADIR, TREE_DIR), END=ANCMUT, allow_missing=True)
+  output:
+    COMPRESSED_RELATE_TREES_CHR
+  resources:
+    time=120
+  shell:
+    '''
+    tar czfk {output} {input} 
+    '''
+
+# convert to tree sequences (for analysis with tskit) - dont bother with this
+TS_CHR = RELATE_TREES_CHR
+
+rule tree_sequence:
+  input:
+    expand(TS_CHR, CHR=CHRS, END=['trees'])
+
+rule tree_sequence_chr:
+  input:
+    expand(RELATE_TREES_CHR, END=ANCMUT, allow_missing=True) 
+  output: 
+    expand(TS_CHR, END=['trees'], allow_missing=True)
+  threads: 1
+  resources:
+    time = 240 
+  params:
+    prefix_in=RELATE_TREES_CHR.replace('.{END}',''), 
+    prefix_out=TS_CHR.replace('.{END}',''), 
+  shell:
+    '''
+    {RELATE}bin/RelateFileFormats \
+      --mode ConvertToTreeSequence \
+      -i {params.prefix_in} \
+      -o {params.prefix_out}
+    '''
+# chr2 used 151GB RAM and took 2.5h
+# too big to open in jupyterhub now (max 24gb but chr2 is 70gb), but can check out tree stats with
+# python3 -m tskit trees data/cvi_africa_and1001.EVA_2020-10-20.vcf.gz_dip2Norm.vcf.b.gz.vcf_atcgOnly.vcf.gz_chr2.vcf_keep-samples.vcf_biallelic.vcf_imputed.vcf.gz.hap_polarized_relate.trees
+# and see that nearly 3e5 trees in chr 2! 
+# actually, only chr2 and chr4 could be converted to treesequences without memory error, alone on nodes with 175GB RAM! so let's skip the treesequences...
+
+# we'll have to change how sparg works, as can no longer load treesequence. better to do it like clues, and just intake the branch length outputs from relate and roll from there. ie, i think we can skip the tskit treesequence bit?
+# i think the next step is to get newick trees from relate, use SampleBranchLengths.sh, for one parituclar tree in the sequence (and we will eventiually build up to multiple). 
+# we then need to process these trees (eg shared times), and this should be the first step of sparg. 
+# then we can estimate dispersal rates and locate ancestors (two different functions taking the input from above)
+# old workflow: treeseq -> loci -> newick trees -> dendropy trees -> process -> dispersal -> locations
+# proposed workflow: newick trees -> process (perhaps with dendropy, or maybe tskit) -> dispersal -> locations
+# or is it better to hide the processing and skip some intermediate files? (downside being that we would likely re-process things for locations): newick trees -> dispersal -> locations
+
+# ------------- coalescence rates ---------
+
+POPLABELS = DATADIR + 'keep.poplabels'
 rule poplabels:
   input:
-    DATADIR + '1001G.fam'
+    IDS_KEPT
   output:
-    poplabels_file
-  resources:
-    time = 10
-  run:
-    inds = np.genfromtxt(input[0], dtype="str")[:,1] #load individual IDs
-    with open(output[0], mode='w') as file:
-      writer = csv.writer(file, delimiter=' ')
-      writer.writerow(['sample','population','group','sex'])
-      for i in inds:
-        data = np.hstack((i, 0, 0, 1)) #set sex to 1 for haploids
-        writer.writerow(data)
-    file.close()
-
-# --------------------- reestimate pop size and branch lengths -----------------------
-
-popsize_pattern = relate_pattern.replace('.{filetype}', '_popsize_numiter{num_iter}_threshold{threshold}.{filetype}')
-filetypes = ['anc','mut','coal']
-popsize_results = expand(popsize_pattern, CHR=chromosomes, twoNe=twoNes, u=us, num_iter=num_iters, threshold=thresholds, filetype=filetypes)
-
-rule all_popsize:
-  input:
-    popsize_results
-
-# need this when cant use wildcard constraint above
-ruleorder: popsize > relate
-
-rule popsize:
-  input:
-    relate_pattern.replace('{filetype}',filetypes[0]),
-    relate_pattern.replace('{filetype}',filetypes[1]),
-    poplabels_file
-  output:
-    popsize_pattern.replace('{filetype}', filetypes[0]),
-    popsize_pattern.replace('{filetype}', filetypes[1]),
-    popsize_pattern.replace('{filetype}', filetypes[2])
-  threads: 40
-  resources:
-    time = 6 * 60
+    POPLABELS
   shell:
-    """
-    # module load R #because relate wants to plot popsize and mutation rate estimates (nevermind, I commented out the plotting functions to avoid this)
-    {popsize_script} \
-      -i {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u} \
-      -o {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold} \
-      -m {wildcards.u} \
-      --poplabels {input[2]} \
-      --years_per_gen 1 \
-      --threshold {wildcards.threshold} \
-      --num_iter {wildcards.num_iter} \
-      --noanc 0 \
-      --threads {threads}
-    # now unpack the anc and mut files (comment this out if only using 1 thread, as relate only gzips when it parallelizes)
-    gzip -d {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold}.anc.gz
-    gzip -d {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold}.mut.gz
-    """
+    '''
+    echo "sample population group sex" > {output}
+    awk '{{print $0, 0, 0, "NA"}}' {input} >> {output}
+    '''
 
-# ----------------------- convert to tree sequence -------------------------------------
+#RELATE_TREES_COAL_CHR = RELATE_TREES_CHR.replace('.{END}','_popsize.{END}')
+#ANCMUTCOAL = ['anc','mut','coal']
+#ANCMUTCOAL = ['coal'] #when using --noanc 1
+#
+#rule coal:
+#  input:
+#    expand(RELATE_TREES_COAL_CHR, CHR=[4], END=ANCMUTCOAL)
+#
+#rule coal_chr:
+#  input:
+#    expand(RELATE_TREES_CHR, END=ANCMUT, allow_missing=True),
+#    POPLABELS
+#  output:
+#    expand(RELATE_TREES_COAL_CHR, END=ANCMUTCOAL, allow_missing=True)
+#  params:
+#    prefix=RELATE_TREES_CHR.replace('.{END}',''),
+#    prefix_out=RELATE_TREES_COAL_CHR.replace('.{END}','')
+#  threads: 1
+#  resources:
+#    time=6*60
+#  shell:
+#    '''
+#    module load gcc/8.3.0 #needed for relate?
+#    module load r/4.1.2 #needed for plots
+#    {RELATE}/scripts/EstimatePopulationSize/EstimatePopulationSize.sh \
+#              -i {params.prefix} \
+#              -m 7e-9 \
+#              --years_per_gen 1 \
+#              --poplabels {input[2]} \
+#              --seed 1 \
+#              --num_iter 1 \
+#              --threshold 0.5 \
+#              --threads {threads} \
+#              -o {params.prefix_out} \
+#              --noanc 1
+#    '''
+# now we split up the above code to run in shorter chunks
+# this is taking too long
+# even with num_iter 1 and noanc 1, it tries to re-infer branch lengths which takes a very long time, even with 80 threads (more than 12 hours)
+# how about:
 
-tree_pattern = popsize_pattern.replace('{filetype}','trees')
-tree_results = expand(tree_pattern, CHR=chromosomes, twoNe=twoNes, u=us, num_iter=num_iters, threshold=thresholds)
+# ------------- remove trees with too few mutations -----------------
 
-rule all_to_ts:
+RELATE_TREES_EXTRACTED_CHR = RELATE_TREES_CHR.replace('.{END}','_extracted.{END}')
+ANCMUTDIST = ['anc','mut','dist']
+
+rule extract_trees:
   input:
-    tree_results
+    expand(RELATE_TREES_EXTRACTED_CHR, CHR=[4], END=ANCMUTDIST) 
 
-rule to_ts:
+rule extract_trees_chr:
   input:
-    popsize_pattern.replace('{filetype}','anc'),
-    popsize_pattern.replace('{filetype}','mut')
+    expand(RELATE_TREES_CHR, END=ANCMUT, allow_missing=True)
   output:
-    tree_pattern
+    expand(RELATE_TREES_EXTRACTED_CHR, END=ANCMUTDIST, allow_missing=True) 
+  params:
+    prefix_out=RELATE_TREES_EXTRACTED_CHR.replace('.{END}','')
+  threads: 1
   resources:
-    time = 60
+    time = 4*60
   shell:
-    """
-    {RELATE}/bin/RelateFileFormats \
-      --mode ConvertToTreeSequence \
-      -i {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold} \
-      -o {DATADIR}1001G_chr{wildcards.CHR}_2Ne{wildcards.twoNe}_u{wildcards.u}_popsize_numiter{wildcards.num_iter}_threshold{wildcards.threshold}
-    """
+    ''' 
+    {RELATE}/bin/RelateExtract\
+                 --mode RemoveTreesWithFewMutations \
+                 --anc {input[0]} \
+                 --mut {input[1]} \
+                 --threshold 0.5 \
+                 -o {params.prefix_out} 
+    '''
+# 3:13 for chr4
 
-# --------------------- choose loci to sample ----------------------
+# --------------- calculate coalescence rates (without re-inferring branch lengths) --------------
 
-loci_pattern = popsize_pattern.replace('.{filetype}','_nloci%d.npz' %nloci)
-loci_results = expand(loci_pattern, CHR=chromosomes, twoNe=twoNes, u=us, num_iter=num_iters, threshold=thresholds)
+COAL_CHR = RELATE_TREES_EXTRACTED_CHR
+COALBIN = ['coal','bin']
 
-rule all_choose_loci:
+rule coal:
   input:
-    loci_results
+    expand(COAL_CHR, CHR=[4], END=COALBIN) 
 
-rule choose_loci:
+rule coal_chr:
   input:
-    tree_pattern
+    expand(RELATE_TREES_EXTRACTED_CHR, END=ANCMUTDIST, allow_missing=True),
+    POPLABELS
   output:
-    loci_pattern
+    expand(COAL_CHR, END=COALBIN, allow_missing=True) 
+  params:
+    prefix=RELATE_TREES_EXTRACTED_CHR.replace('.{END}','')
+  threads: 1
   resources:
-    time = 10
-  run:
-    ts = tskit.load(input[0]) #load tree sequence
-    which = np.linspace(0, ts.num_trees-1, nloci, dtype=int) #uniformly choose nloci tree indices
-    which_trees, intervals = sparg.choose_loci(ts, which=which, mode='tree') #determine tree indices and genomic intervals of each
-    np.savez(output[0], which_trees=which_trees, intervals=intervals) #save for downstream
-
-# --------------------- process trees at chosen loci ----------------------
-
-trees_pattern = popsize_pattern.replace('.{filetype}','_processed_trees_locus{locus}_tCutoff{tCutoff}.npz')
-sub_pattern = popsize_pattern.replace('.{filetype}','_sub_locus{locus}.newick')
-
-trees_results = expand(trees_pattern, CHR=chromosomes,
-                       twoNe=twoNes, u=us,
-                       num_iter=num_iters, threshold=thresholds,
-                       locus=loci,
-                       tCutoff=tCutoffs)
-
-rule all_trees:
-  input:
-    trees_results
-
-rule process_trees:
-  input:
-    loci_pattern,
-    expand(popsize_pattern, filetype=filetypes, allow_missing=True)
-  output:
-    trees_pattern
-  run:
-    # load list of trees we are going to sample
-    npz = np.load(input[0], allow_pickle=True)
-    which_trees = npz['which_trees']
-    intervals = npz['intervals']
-    # and choose one to process
-    i = int(wildcards.locus)
-    locus = which_trees[i]
-    print('tree index:', locus)
-    interval = intervals[i]
-    print('genomic interval:', interval)
-    # process
-    coal_times, pcoals, shared_times, samples = sparg.process_trees(which_loci=[locus], 
-                                                                    intervals=[interval], 
-                                                                    tCutoff=int(wildcards.tCutoff), 
-                                                                    important=True, 
-                                                                    M=M, 
-                                                                    PATH_TO_RELATE=RELATE, 
-                                                                    u=float(wildcards.u), 
-                                                                    infile=input[1].replace('.anc',''), 
-                                                                    outfile=output[0].replace('processed_trees','sub').replace('tCutoff%d.npz' %int(wildcards.tCutoff),''), 
-                                                                    coalfile=input[3]) #this makes the sub file (newick file of subtrees)
-    # save
-    np.savez(output[0], coal_times=coal_times, pcoals=pcoals, shared_times=shared_times, samples=samples)
-
-# --------------------- calculate genetic distances between samples ------------
-
-gdist_pattern = DATADIR + '{ending}'
-endings = ['1001G','1001G_MAF0.05']
-gdist_results = expand(gdist_pattern+'.dist', ending=endings)
-
-rule all_genetic_distances:
-  input:
-    gdist_results
-
-rule genetic_distances:
-  input:
-    gdist_pattern + '.bed'
-  output: 
-    gdist_pattern + '.dist'
-  resources:
-    time = 15
-  threads: 40
+    time = 24*60
   shell:
-    """
-    module load plink/1.90b6
-    plink --bfile {DATADIR}{wildcards.ending} --recode --tab --out {DATADIR}{wildcards.ending} --threads {threads} #first need to reformat from .bed to .ped
-    plink --distance allele-ct ibs --file {DATADIR}{wildcards.ending} --out {DATADIR}{wildcards.ending} --threads {threads} #find number of SNP differences, and 1 - proportion of SNPs they differ by
-    """
+    ''' 
+    {RELATE}bin/RelateCoalescentRate\
+                 --mode EstimatePopulationSize \
+                 -i {params.prefix} \
+                 -o {params.prefix} \
+                 -m 7e-9 \
+                 --poplabels {input[3]}\
+                 --years_per_gen 1
+    '''
+# 3GB, 13h for chr 4
 
-# ---------------------- find clusters of nearly identical samples ----------------
+# ------------ sample branch lengths at a particular locus -------------
 
-clusters_pattern = DATADIR + '1001G_MAF0.05_dCutoff{dCutoff}_clusters.npy'
-clusters_results = expand(clusters_pattern, dCutoff=dCutoffs)
+NEWICK_CHR_LOCUS = COAL_CHR.replace('.{END}','_locus{LOCUS}.newick')
 
-rule all_clusters:
+rule sample_branch_lengths:
   input:
-    clusters_results
+    expand(NEWICK_CHR_LOCUS, CHR=[4], LOCUS=[1001])
 
-rule clusters:
+rule sample_branch_lengths_chr_locus:
   input:
-    DATADIR + '1001G_MAF0.05.dist'
+    expand(RELATE_TREES_EXTRACTED_CHR, END=ANCMUTDIST, allow_missing=True),
+    expand(COAL_CHR, END=COALBIN, allow_missing=True)
   output:
-    clusters_pattern
-  resources:
-    time = 15
-  run:
-    #load genetic distances
-    distances = []
-    with open(input[0], 'r') as file:
-      for i,line in enumerate(file):
-        distances.append([float(v) for v in line.strip().split("\t")])    
-    # find nearly identical pairs
-    identical_pairs = []
-    for i,distance in enumerate(distances):
-      for j,d in enumerate(distance):
-        if d < float(wildcards.dCutoff):
-          identical_pairs.append([i+1,j])
-    # make clusters from identical pairs 
-    #i,j = identical_pairs[0]
-    #clusters = [[i,j]] #seed with first identical pair
-    #for i,j in identical_pairs[1:]: #now loop through each additional identical pair
-    #  dummy = 0
-    #  for cluster in clusters: #look at each existing cluster
-    #    if j in cluster: #if j in cluster
-    #      if i not in cluster: #and i not in cluster
-    #        cluster.append(i) #add i
-    #      dummy = 1 #successfully found a cluster that j was in
-    #      exit #move on to next identical_pair
-    #  if dummy == 0: #if j not in any cluster
-    #    clusters.append([i,j]) #make a new cluster
-    # save
-    #np.save(output[0], clusters, 'dtype=object')
-    np.save(output[0], identical_pairs, 'dtype=object')
-
-# ---------------------- download metadata on 1001G ----------------------------
-
-rule get_metadata:
-  input:
-  output:
-    accessions_file
+    NEWICK_CHR_LOCUS
+  params:
+    prefix_in=RELATE_TREES_EXTRACTED_CHR.replace('.{END}',''),
+    prefix_out=NEWICK_CHR_LOCUS.replace('.newick','')
   shell:
-    """
-    wget https://raw.githubusercontent.com/hagax8/arabidopsis_viz/master/data/dataframe_1001G.csv -O {accessions_file}
-    """
+    '''
+    {RELATE}scripts/SampleBranchLengths/SampleBranchLengths.sh \
+                 -i {params.prefix_in} \
+                 --dist {input[2]} \
+                 --coal {input[3]} \
+                 -o {params.prefix_out} \
+                 -m 7e-9 \
+                 --format n \
+                 --num_samples 10 \
+                 --first_bp {wildcards.LOCUS} \
+                 --last_bp {wildcards.LOCUS} \
+                 --seed 1 
+    '''
 
-# --------------------- make file with locations of samples -----------------------------
+# -------------- get sample locations --------------------
+# note we are giving them as long, lat (x,y)
 
-rule get_locations:
+# 1001G samples
+lOOlG_LOCATIONS = DATADIR + '1001g_locations.txt'
+rule get_lOOlg_locations:
   input:
-    accessions_file
+    lOOlG_METADATA
   output:
-    location_file
-  run:
-    metadata = pd.read_csv(input[0], header=0)
-    all_locs = np.array(np.array(metadata)[:,4:6], dtype='float')
-    np.savetxt(output[0], all_locs) 
+    lOOlG_LOCATIONS
+  shell:
+    '''
+    awk -F ',"' '{{print $1, $7, $6}}' {input} | tr -d '"' > {output} #note there are commas within some entries so include a double qoute in separator to access correct column, then remove extra qoutes
+    '''
 
-# --------------------- get mles at individual loci ----------------------
-
-mles_pattern = popsize_pattern.replace('.{filetype}', '_tCutoff{tCutoff}_dCutoff{dCutoff}_group{group}_tsplits{tsplits}_locus{locus}_mle-dispersal.npy').replace('_popsize','')
-mles_results = expand(mles_pattern, CHR=chromosomes,
-                      twoNe=twoNes, u=us,
-                      num_iter=num_iters, threshold=thresholds,
-                      tCutoff=tCutoffs,
-                      dCutoff=dCutoffs, group=groups,
-                      tsplits=mle_dispersal_tsplits,
-                      locus=mle_dispersal_loci)
-
-rule all_mles:
+# Fulgione samples
+FULGIONE_LOCATIONS = DATADIR + 'fulgione_locations.txt'
+rule get_fulgione_locations:
   input:
-    mles_results
-
-rule mles:
-  input:
-    trees_pattern,
-    location_file,
-    clusters_pattern
   output:
-    mles_pattern
-  resources:
-    time = 15 
-  threads: 40
-  run:
-    os.environ["OMP_NUM_THREADS"] = str(threads) 
-    # load processed trees
-    processed_trees = np.load(input[0], allow_pickle=True)
-    coal_times = processed_trees['coal_times']
-    pcoals = processed_trees['pcoals']
-    shared_times = processed_trees['shared_times']
-    samples = processed_trees['samples']
-    # determine which samples to keep
-    locations = np.loadtxt(input[-2]) #locations of samples
-    group = str(wildcards.group) #which samples to use
-    clusters = np.load(input[-1], allow_pickle=True) #clusters of nearly identical samples
-    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
-    # filter lists of samples and matrices of shared_times to keep only those samples we want (they are still in the pcoals and coal_times though)
-    samples_keep, shared_times_keep = sparg._filter_samples_times(samples, shared_times, keep)
-    # tsplits and bounds and initial guess
-    tsplits = []
-    for i in (wildcards.tsplits).strip('[]').split(', '):
-      try:
-        tsplits += [float(i)]
-      except:
-        tsplits += []
-    bounds = tuple(bnds[0:3]*(len(tsplits)+1) + [bnds[-1]]) #bounds on parameters
-    x0 = x0s[len(tsplits)] #initial guess
-    sphi = scale_phi
-    # and find mle dispersal
-    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times_keep, samples_keep, x0=x0, bnds=bounds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=sphi, remove_missing=False, method=method, tsplits=tsplits)
-    if not mle.success:
-      phi_scalar = 10 #increase scale_phi by order of magnitude
-      sphi = sphi * phi_scalar 
-      print('search failed with scale_phi=%d, trying scale_phi=%d...' %(sphi,sphi*phi_scalar))
-      #x0 = mle.x #take where we left off
-      x0[-1] = x0[-1] * phi_scalar #rescale starting guess for phi
-      mle = sparg.find_mle(locations, coal_times, pcoals, shared_times_keep, samples_keep, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=sphi, remove_missing=False, method=method, tsplits=tsplits)
-    if mle.success: 
-      mle.x[-1] = mle.x[-1]/sphi #put back to original scale
-      np.save(output[0], mle)
-    else:
-      print('still failed - try something else!')
+    FULGIONE_LOCATIONS
+  shell:
+    '''
+    # get the list of sample ids
+    wget https://raw.githubusercontent.com/HancockLab/CVI/master/data/cvi_samples_plusCVI0.txt
+    # remove CVI-0, which is in the 1001G list
+    sed '/6911/d' cvi_samples_plusCVI0.txt > cvi_samples.txt
+    # let's not worry about the details and just put them all in the same location for now 
+    awk '{{print $1, -24.3912, 15.007374}}' cvi_samples.txt > {output}
+    # clean up
+    rm cvi_samples*txt 
+    '''
 
-# --------------------- get mcle dispersal across loci ----------------------
+# Durvasula sample
+# running out of time so doing this manually rather than learn more unix
+# from https://github.com/HancockLab/CVI/blob/master/data/allCoordinates_MorSAFogo.txt
+#-5.42698	35.4528		R_Zin	
+#-5.02369	34.04256	R_Bab	
+#-4.83141	34.99519	R_Bbe	
+#-4.66611	34.96076	R_Ket	
+#-4.10258	34.09166	NMA_Taz	
+#-4.22245	34.05293	NMA_Tah	
+#-4.0839	34.01934	NMA_Bba	
+#-4.05153	33.9561		NMA_Meh	
+#-4.02647	33.8723		NMA_Tiz	
+#-5.17465	33.55006	SMA_Ifr	
+#-5.17911	33.42357	SMA_Azr	
+#-5.44856	32.97243	SMA_Agl	
+#-5.51027	32.92735	SMA_Khe	
+#-6.014969	32.53516	SMA_Elk	
+#-6.275309	32.07853	SMA_Oua	
+#-6.22955	32.04208	SMA_Til	
+#-7.40644	31.47197	HA_Elh	
+#-7.5262	31.41988	HA_Arb	
+#-7.81285	31.2366		HA_Ait	
+#-7.67361	31.22656	HA_Set	
 
-mcle_pattern = mles_pattern.replace('_locus{locus}', '').replace('_mle', '_mcle')
-if xonly:
-  mcle_pattern = mcle_pattern.replace('dispersal','dispersal_xonly')
-if yonly:
-  mcle_pattern = mcle_pattern.replace('dispersal','dispersal_yonly')
-mcle_results = expand(mcle_pattern, CHR=chromosomes,
-                      twoNe=twoNes, u=us, 
-                      num_iter=num_iters, threshold=thresholds,
-                      tCutoff=tCutoffs,
-                      dCutoff=dCutoffs,
-                      group=groups,
-                      tsplits=mcle_dispersal_tsplits)
+# now add locations to https://github.com/HancockLab/CVI/blob/master/data/moroccan_paper_IDs.txt based on names of plants and names of locations
+#22010	M_ha-Ait14	-7.81285	31.2366
+#22003	M_ha-Ait9	-7.81285        31.2366
+#35604	M_ha-Arb-2	-7.5262         31.41988
+#18513	M_ha-Arb0	-7.5262         31.41988
+#35523	M_ha-Elh-10	-7.40644	31.47197
+#35598	M_ha-Elh-15	-7.40644	31.47197
+#35616	M_ha-Elh-2	-7.40644	31.47197
+#35606	M_ha-Elh-23	-7.40644	31.47197
+#35596	M_ha-Elh-33	-7.40644	31.47197
+#35601	M_ha-Elh-39	-7.40644	31.47197
+#35595	M_ha-Elh-46	-7.40644	31.47197
+#35613	M_ha-Elh-52	-7.40644	31.47197
+#18511	M_ha-Elh20	-7.40644	31.47197
+#18516	M_ha-Elh27	-7.40644	31.47197
+#35602	M_ha-Set-6	-7.67361	31.22656
+#22009	M_ha-Set0	-7.67361	31.22656
+#35521	M_nma-Bba-1	-4.0839		34.01934
+#35522	M_nma-Bba-2	-4.0839		34.01934
+#22001	M_nma-Bba0	-5.02369	35.04256
+#37473	M_nma-Meh-4	-4.05153	33.9561
+#35603	M_nma-Meh-7	-4.05153	33.9561
+#22000	M_nma-Meh0	-4.05153	33.9561
+#35612	M_nma-Tah-4	-4.22245	34.05293
+#18509	M_nma-Tah0	-4.22245	34.05293
+#35620	M_nma-Taz-11	-4.10258	34.09166
+#35609	M_nma-Taz-16	-4.10258	34.09166
+#35593	M_nma-Taz-18	-4.10258	34.09166
+#22005	M_nma-Taz0	-4.10258	34.09166
+#35624	M_nma-Tiz-7	-4.02647	33.8723
+#22011	M_nma-Tiz0	-4.02647	33.8723
+#37457	M_r-Bab-0	-5.02369	34.04256
+#35617	M_r-Bab-3	-5.02369	34.04256
+#22008	M_r-Bab0	-5.02369	34.04256 (not in table S1?)
+#22007	M_r-Bbe0	-4.83141	34.99519
+#35512	M_r-Ket-10	-4.66611	34.96076
+#37470	M_r-Ket-12	-4.66611	34.96076
+#21999	M_r-Ket10	-4.66611	34.96076
+#35614	M_r-Zin-4	-5.42698	35.4528
+#18515	M_r-Zin9	-5.42698	35.4528
+#35619	M_sma-Agl-1	-5.44856	32.97243
+#35623	M_sma-Agl-2	-5.44856	32.97243
+#35615	M_sma-Agl-3	-5.44856	32.97243
+#35607	M_sma-Agl-5	-5.44856	32.97243
+#35605	M_sma-Agl-9	-5.44856	32.97243
+#22006	M_sma-Agl0	-5.44856	32.97243
+#35599	M_sma-Azr-11	-5.17911	33.42357
+#35622	M_sma-Azr-13	-5.17911	33.42357
+#35625	M_sma-Azr-16	-5.17911	33.42357
+#35611	M_sma-Azr-5	-5.17911	33.42357
+#35594	M_sma-Azr-7	-5.17911	33.42357
+#18514	M_sma-Azr0	-5.17911	33.42357
+#37469	M_sma-Elk-20	-6.014969	32.53516
+#35621	M_sma-Elk-28	-6.014969	32.53516
+#37471	M_sma-Elk-3	-6.014969	32.53516
+#37467	M_sma-Elk-5	-6.014969	32.53516
+#18512	M_sma-Elk1	-6.014969	32.53516
+#35600	M_sma-ifr-3	-5.17465	33.55006
+#35610	M_sma-Ifr-4	-5.17465	33.55006
+#35618	M_sma-Ifr-6	-5.17465	33.55006
+#22002	M_sma-IFr0	-5.17465	33.55006
+#35608	M_sma-Khe-32	-5.51027	32.92735
+#22004	M_sma-Khe0	-5.51027	32.92735
+#35513	M_sma-Oua-0	-6.275309	32.07853
+#18510	M_sma-Til2	-6.22955	32.04208
 
-rule all_mcles:
+# and the missing samples noticed above when getting ages
+#21131	Mt0-1 8.7667 50.8167 (Ma0) 
+#21132	Mt0-2 8.7667 50.8167
+#21133	Mt0-3 8.7667 50.8167
+#21134	Mt0-4 8.7667 50.8167
+#21135	Aitba -7.45 31.48 
+#21137	Ita-0 -4.19891 34.0787
+#21138	Plateres 32.8666 34.8833
+#21139	Toufl-1 -7.42 31.47
+#211399 Tnz2-75925 36.12 -2.8739 (Tanz-2)
+#37472	M_nma-Meh-4_exH7-2 -4.05153 33.9561
+#37468	M_sma-Elk-5_exH2-1 -6.014969 32.53516
+#35520	Tanz-4003 36.12 -2.8739 (Tanz-1) 
+
+# and the herbaria samples
+#AH0001	ZA-h1 19.375 -34.125
+#AH0002	ZA-h2 19.375 -34.125
+#AH0003	ZA-h3 19.375 -34.125
+#AH0004	ZA-h4 19.282 -33.399 (notice sign error in table S1)
+#AH0006	ZA-h5 19.375 -34.125
+#AH0007	Tanz-h1 37.159565 -3.021568
+#AH0008	Tanz-h2 36.71667 -3.23333
+#AH0009	Tanz-h3 36.71667 -3.23333
+#AH0011	Alg-h1 3.058889 36.753889 (just picked Algiers, https://en.wikipedia.org/wiki/Algiers)
+
+# now clean up and write to file
+
+DURVASULA_LOCATIONS = DATADIR + 'durvasula_locations.txt'
+rule get_durvasula_locations:
   input:
-    mcle_results
-
-rule mcle:
-  input:
-    expand(trees_pattern, locus=mcle_dispersal_loci, allow_missing=True),
-    location_file,
-    clusters_pattern
   output:
-    mcle_pattern
-  resources:
-    time = 1 * 60 #with 100 loci per chromosome: 8 hours for 1 epoch, 12 hours for 2 epoch, 16 hours for 3 epochs, 16 hours for 4 epochs (hitting bounds), 1 hour for xonly or yonly
-  threads: 40
-  run:  
-    os.environ["OMP_NUM_THREADS"] = str(threads) 
-    # load processed trees
-    coal_times = []
-    pcoals = []
-    shared_times = []
-    samples = []
-    for locus in range(len(mcle_dispersal_loci)):
-      processed_trees = np.load(input[locus], allow_pickle=True) #find correct input file from expansion
-      coal_times.append(processed_trees['coal_times'][0])
-      pcoals.append(processed_trees['pcoals'][0])
-      shared_times.append(processed_trees['shared_times'][0])
-      samples.append(processed_trees['samples'][0])
-    # determine which samples to keep
-    locations = np.loadtxt(input[-2]) #locations of samples
-    group = str(wildcards.group) #which samples to use
-    clusters = np.load(input[-1], allow_pickle=True) #clusters of nearly identical samples
-    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
-    # filter lists of samples and matrices of shared_times to keep only those samples we want (they are still in the pcoals and coal_times though)
-    samples_keep, shared_times_keep = sparg._filter_samples_times(samples, shared_times, keep)
-    # tsplits and bounds and initial guess
-    tsplits = []
-    for i in (wildcards.tsplits).strip('[]').split(', '):
-      try:
-        tsplits += [float(i)]
-      except:
-        tsplits += []
-    bounds = tuple(bnds[0:3]*(len(tsplits)+1) + [bnds[-1]]) #bounds on parameters
-    x0 = x0s[len(tsplits)] #initial guess
-    sphi = scale_phi
-    outfile = output[0]
-    # sneaky code to try on just one dimension at a time
-    if xonly:
-      locations = locations[:,1] #longitude (x) only
-      x0 = [x0[i*3] for i in range(len(tsplits)+1)] + x0[-1:]
-      bounds = tuple(bnds[:1]*(len(tsplits)+1) + [bnds[-1]])
-    if yonly:
-      locations = locations[:,0] #latitude (y) only
-      x0 = [x0[i*3+1] for i in range(len(tsplits)+1)] + x0[-1:]
-      bounds = tuple(bnds[1:2]*(len(tsplits)+1) + [bnds[-1]])
-    # and find mle dispersal
-    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times_keep, samples_keep, x0=x0, bnds=bounds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=sphi, remove_missing=False, method=method, tsplits=tsplits)
-    if not mle.success:
-      phi_scalar = 10 #increase scale_phi by order of magnitude
-      sphi = sphi * phi_scalar 
-      print('search failed with scale_phi=%d, trying scale_phi=%d...' %(sphi,sphi*phi_scalar))
-      #x0 = mle.x #take where we left off
-      x0[-1] = x0[-1] * phi_scalar #rescale starting guess for phi
-      mle = sparg.find_mle(locations, coal_times, pcoals, shared_times_keep, samples_keep, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=sphi, remove_missing=False, method=method, tsplits=tsplits)
-    if mle.success: 
-      mle.x[-1] = mle.x[-1]/sphi #put back in original scale
-      np.save(output[0], mle)
-    else:
-      print('still failed - try something else!')
+    DURVASULA_LOCATIONS
+  shell:
+    '''
+    echo "22010 -7.81285 31.2366" > {output}
+    echo "22003 -7.81285 31.2366" >> {output}
+    echo "35604 -7.5262 31.41988" >> {output}
+    echo "18513 -7.5262 31.41988" >> {output}
+    echo "35523 -7.40644 31.47197" >> {output}
+    echo "35598 -7.40644 31.47197" >> {output}
+    echo "35616 -7.40644 31.47197" >> {output}
+    echo "35606 -7.40644 31.47197" >> {output}
+    echo "35596 -7.40644 31.47197" >> {output}
+    echo "35601 -7.40644 31.47197" >> {output}
+    echo "35595 -7.40644 31.47197" >> {output}
+    echo "35613 -7.40644 31.47197" >> {output}
+    echo "18511 -7.40644 31.47197" >> {output}
+    echo "18516 -7.40644 31.47197" >> {output}
+    echo "35602 -7.67361 31.22656" >> {output}
+    echo "22009 -7.67361 31.22656" >> {output}
+    echo "35521 -4.0839 34.01934" >> {output}
+    echo "35522 -4.0839 34.01934" >> {output}
+    echo "22001 -5.02369 35.04256" >> {output}
+    echo "37473 -4.05153 33.9561" >> {output}
+    echo "35603 -4.05153 33.9561" >> {output}
+    echo "22000 -4.05153 33.9561" >> {output}
+    echo "35612 -4.22245 34.05293" >> {output}
+    echo "18509 -4.22245 34.05293" >> {output}
+    echo "35620 -4.10258 34.09166" >> {output}
+    echo "35609 -4.10258 34.09166" >> {output}
+    echo "35593 -4.10258 34.09166" >> {output}
+    echo "22005 -4.10258 34.09166" >> {output}
+    echo "35624 -4.02647 33.8723" >> {output}
+    echo "22011 -4.02647 33.8723" >> {output}
+    echo "37457 -5.02369 34.04256" >> {output}
+    echo "35617 -5.02369 34.04256" >> {output}
+    echo "22008 -5.02369 34.04256" >> {output}
+    echo "22007 -4.83141 34.99519" >> {output}
+    echo "35512 -4.66611 34.96076" >> {output}
+    echo "37470 -4.66611 34.96076" >> {output}
+    echo "21999 -4.66611 34.96076" >> {output}
+    echo "35614 -5.42698 35.4528" >> {output}
+    echo "18515 -5.42698 35.4528" >> {output}
+    echo "35619 -5.44856 32.97243" >> {output}
+    echo "35623 -5.44856 32.97243" >> {output}
+    echo "35615 -5.44856 32.97243" >> {output}
+    echo "35607 -5.44856 32.97243" >> {output}
+    echo "35605 -5.44856 32.97243" >> {output}
+    echo "22006 -5.44856 32.97243" >> {output}
+    echo "35599 -5.17911 33.42357" >> {output}
+    echo "35622 -5.17911 33.42357" >> {output}
+    echo "35625 -5.17911 33.42357" >> {output}
+    echo "35611 -5.17911 33.42357" >> {output}
+    echo "35594 -5.17911 33.42357" >> {output}
+    echo "18514 -5.17911 33.42357" >> {output}
+    echo "37469 -6.014969 32.53516" >> {output}
+    echo "35621 -6.014969 32.53516" >> {output}
+    echo "37471 -6.014969 32.53516" >> {output}
+    echo "37467 -6.014969 32.53516" >> {output}
+    echo "18512 -6.014969 32.53516" >> {output}
+    echo "35600 -5.17465 33.55006" >> {output}
+    echo "35610 -5.17465 33.55006" >> {output}
+    echo "35618 -5.17465 33.55006" >> {output}
+    echo "22002 -5.17465 33.55006" >> {output}
+    echo "35608 -5.51027 32.92735" >> {output}
+    echo "22004 -5.51027 32.92735" >> {output}
+    echo "35513 -6.275309 32.07853" >> {output}
+    echo "18510 -6.22955 32.04208" >> {output}
+    echo "21131 8.7667 50.8167" >> {output}
+    echo "21132 8.7667 50.8167" >> {output}
+    echo "21133 8.7667 50.8167" >> {output}
+    echo "21134 8.7667 50.8167" >> {output}
+    echo "21135 -7.45 31.48" >> {output}
+    echo "21137 -4.19891 34.0787" >> {output}
+    echo "21138 32.8666 34.8833" >> {output}
+    echo "21139 -7.42 31.47" >> {output}
+    echo "211399 36.12 -2.8739" >> {output}
+    echo "37472 -4.05153 33.9561" >> {output}
+    echo "37468 -6.014969 32.53516" >> {output}
+    echo "35520 36.12 -2.8739" >> {output}
+    echo "AH0001 19.375 -34.125" >> {output}
+    echo "AH0002 19.375 -34.125" >> {output}
+    echo "AH0003 19.375 -34.125" >> {output}
+    echo "AH0004 19.282 -33.399" >> {output}
+    echo "AH0006 19.375 -34.125" >> {output}
+    echo "AH0007 37.159565 -3.021568" >> {output}
+    echo "AH0008 36.71667 -3.23333" >> {output}
+    echo "AH0009 36.71667 -3.23333" >> {output}
+    echo "AH0011 3.058889 36.753889" >> {output}
+    '''
 
-# ---------------------------- recent displacements of all samples at a particular time -------------------------------------
-
-displacements_pattern = mcle_pattern.replace('mcle-dispersal', 'time{time}_displacements')
-displacements_weights_pattern = displacements_pattern.replace('displacements','displacement-weights') 
-displacements_results = expand(displacements_pattern, CHR=chromosomes,
-                                    twoNe=twoNes, u=us,
-                                    num_iter=num_iters, threshold=thresholds,
-                                    tCutoff=tCutoffs,
-                                    dCutoff=dCutoffs,
-                                    group=groups,
-                                    time = displacements_times, 
-                                    tsplits = displacements_tsplits)
-
-rule all_displacements:
+SAMPLE_LOCATIONS = DATADIR + 'sample_locations.txt'
+rule make_sample_locations:
   input:
-    displacements_results
-
-rule displacements:
-  input:
-    expand(trees_pattern, locus=displacements_loci, allow_missing=True),
-    mcle_pattern,
-    location_file,
-    clusters_pattern,
+    lOOlG_LOCATIONS,
+    FULGIONE_LOCATIONS,
+    DURVASULA_LOCATIONS,
+    expand(SAMPLES_CHR, CHR=1)
   output:
-    displacements_pattern,
-    displacements_weights_pattern
-  resources:
-    time = 24 * 60 #100 loci: 12+ hours
-  threads: 40
-  run:
-    os.environ["OMP_NUM_THREADS"] = str(threads) 
-    # determine which samples to keep for use in locating
-    locations = np.loadtxt(input[-2]) #locations of samples
-    group = str(wildcards.group) #which samples to use
-    clusters = np.load(input[-1], allow_pickle=True) #clusters of nearly identical samples
-    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
-    # locate ancestors of these nodes
-    nodes = keep 
-    # naive guess for where they are
-    x0 = np.mean(locations[keep], axis=0) #mean location of samples
-    # required files
-    treefiles = [input[i] for i in range(len(displacements_loci))]
-    mlefiles = [input[-3] for _ in range(len(displacements_loci))] #just use same mcle dispersal for all loci
-    # split times
-    tsplits = []
-    for i in (wildcards.tsplits).strip('[]').split(', '):
-      try:
-        tsplits += [float(i)]
-      except:
-        tsplits += []
-    # find mle locations and weights at each locus
-    mles, weights = sparg.locate(treefiles=treefiles, mlefiles=mlefiles, nodes=nodes, locations=locations, keep=keep, x0=x0, bnds=locations_bnds, times=[int(wildcards.time)], weight=True, scale_phi=1, importance=True, tCutoff=int(wildcards.tCutoff), tsplits=tsplits)
-    np.save(output[0], mles)
-    np.save(output[1], weights)
+    SAMPLE_LOCATIONS
+  shell:
+    '''
+    # combine locations from the three papers together
+    cat {input[0]} {input[1]} {input[2]} > temp.txt
+    # drop samples not in haps/sample
+    grep -vf {IDS_DROPPED} temp.txt > temp2.txt
+    # this leaves 3 more samples than we want
+    # wc -l {IDS_KEPT} temp2.txt
+    # these are our 3 extra samples
+    # cut -d' ' -f1 temp2.txt | grep -xvf {IDS_KEPT} -
+    # they are all in durvasula 
+    # grep -E '37473|37457|37467' data/*ages*
+    # 37473 and 37467 are the two genomes that appear to be in two pieces each, as described above
+    # but what is 37457?
+    # wget https://raw.githubusercontent.com/HancockLab/CVI/master/data/idsToPlants_19-04-18.txt
+    # grep -E '37457' idsToPlants_19-04-18.txt
+    # ok, this one was contaminated 
+    # so let's remove these and we have a full list
+    sed '/37473/d;/37457/d;/37467/d' temp2.txt > temp3.txt
+    # now we need to get this in the same order as the samples are in our haps/sample files
+    # our sample file is in this order
+    tail -n +3 {input[3]} | cut -d' ' -f1 > temp4.txt
+    # to join with the locations we're going to have to sort, but to preserve order first add the row number
+    awk '{{print $1, NR}}' temp4.txt > temp5.txt
+    # now sort
+    sort -n -k1 temp5.txt > temp6.txt
+    sort -n -k1 temp3.txt > temp7.txt
+    # and join
+    join temp6.txt temp7.txt > temp8.txt
+    # sort by original row number
+    sort -n -k2 temp8.txt > temp9.txt
+    # and drop the ids and row numbers
+    awk '{{print $3, $4}}' temp9.txt > {output} 
+    # now mark missing values
+    sed -i -e 's/^[[:space:]]*$/0 0/' {output} 
+    rm temp*
+    '''
 
-# ---------------------------- locating ancestors of a node at multiple times -------------------------------------
+# now we can run sparg!
 
-ancestor_locations_pattern = mcle_pattern.replace('mcle-dispersal', 'node{node}_ancestor-locations')
-ancestor_locations_weights_pattern = ancestor_locations_pattern.replace('locations','location-weights') 
-ancestor_locations_results = expand(ancestor_locations_pattern, CHR=chromosomes,
-                              twoNe=twoNes, u=us,
-                              num_iter=num_iters, threshold=thresholds,
-                              tCutoff=tCutoffs,
-                              dCutoff=dCutoffs,
-                              node=ancestor_locations_nodes,
-                              tsplits=ancestor_locations_tsplits,
-                              group=groups)
 
-rule all_ancestor_locations:
-  input:
-    ancestor_locations_results
 
-rule ancestor_locations:
-  input:
-    expand(trees_pattern, locus=ancestor_locations_loci, allow_missing=True), #processed trees
-    location_file, #locations of samples
-    clusters_pattern, #genetic clusters
-    mcle_pattern #mle dispersal rates
-  output:
-    ancestor_locations_pattern,
-    ancestor_locations_weights_pattern
-  resources:
-    time = 60 * 3 # 60 * 2 for 1000 loci at 10 times, 15 for 100 loci at 10 times
-  threads: 40 
-  run:
-    os.environ["OMP_NUM_THREADS"] = str(threads) 
-    # determine which samples to keep
-    locations = np.loadtxt(input[-3]) #locations of samples
-    group = str(wildcards.group) #which samples to use
-    clusters = np.load(input[-2], allow_pickle=True) #clusters of nearly identical samples
-    group = 'Eurasia' #sneaky (stupid) way to include japanese locations but use dispersal estimates without them (make sure this commented out when not locating japanese samples!)
-    print('warning! adding sneaky code to use japanese locations')
-    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
-    # required files
-    treefiles = [input[i] for i in range(len(ancestor_locations_loci))]
-    mlefiles = [input[-1] for _ in range(len(ancestor_locations_loci))]  
-    # nodes we wish to locate
-    nodes = [int(wildcards.node)]
-    # niave guess for where they are
-    #x0 = np.mean(locations[keep], axis=0) #mean location of samples
-    x0 = locations[nodes[0]] #location of focal sample
-    # split times
-    tsplits = []
-    for i in (wildcards.tsplits).strip('[]').split(', '):
-      try:
-        tsplits += [float(i)]
-      except:
-        tsplits += []
-    # find locations
-    mles, weights = sparg.locate(treefiles=treefiles, mlefiles=mlefiles, nodes=nodes, locations=locations, keep=keep, x0=x0, bnds=locations_bnds, times=ancestor_locations_times, weight=True, scale_phi=1, importance=True, tCutoff=int(wildcards.tCutoff), tsplits=tsplits)
-    np.save(output[0], mles)
-    np.save(output[1], weights)
 
-# ---------------------------- locating ancestors of a misplaced node -------------------------------------
 
-misplaced_ancestor_locations_pattern = mcle_pattern.replace('mcle-dispersal', 'node{node}_misplaced-ancestor-locations')
-misplaced_ancestor_locations_weights_pattern = misplaced_ancestor_locations_pattern.replace('locations','location-weights') 
-misplaced_ancestor_locations_results = expand(misplaced_ancestor_locations_pattern, CHR=chromosomes,
-                                    twoNe=twoNes, u=us,
-                                    num_iter=num_iters, threshold=thresholds,
-                                    tCutoff=tCutoffs,
-                                    dCutoff=dCutoffs,
-                                    node = misplaced_nodes,
-                                    tsplits = misplaced_tsplits,
-                                    group=groups)
 
-rule all_misplaced_ancestor_locations:
-  input:
-    misplaced_ancestor_locations_results
 
-rule misplaced_ancestor_locations:
-  input:
-    expand(trees_pattern, locus=misplaced_loci, allow_missing=True),
-    mcle_pattern,
-    location_file,
-    clusters_pattern,
-  output:
-    misplaced_ancestor_locations_pattern,
-    misplaced_ancestor_locations_weights_pattern
-  resources:
-    time = 2 * 60
-  threads: 40
-  run:
-    os.environ["OMP_NUM_THREADS"] = str(threads) 
-    # determine which samples to keep for use in locating
-    locations = np.loadtxt(input[-2]) #locations of samples
-    group = str(wildcards.group) #which samples to use
-    clusters = np.load(input[-1], allow_pickle=True) #clusters of nearly identical samples
-    keep = filter_samples(locations, group, clusters) #list of samples to keep (no identicals and no north americans)
-    # locate ancestors of these nodes
-    nodes = [int(wildcards.node)]
-    # naive guess for where they are
-    #x0 = np.mean(locations[keep], axis=0) #mean location of samples 
-    x0 = locations[nodes[0]] #location of focal sample
-    # misplace the sample
-    locations[int(wildcards.node)] = np.mean(locations[keep], axis=0) #misplace at mean location of samples
-    # required files
-    treefiles = [input[i] for i in range(len(misplaced_loci))]
-    mlefiles = [input[-3] for _ in range(len(misplaced_loci))]  
-    # split times
-    tsplits = []
-    for i in (wildcards.tsplits).strip('[]').split(', '):
-      try:
-        tsplits += [float(i)]
-      except:
-        tsplits += []
-    # find mle locations and weights at each locus
-    mles, weights = sparg.locate(treefiles=treefiles, mlefiles=mlefiles, nodes=nodes, locations=locations, keep=keep, x0=x0, bnds=locations_bnds, times=misplaced_times, weight=True, scale_phi=1, importance=True, tCutoff=int(wildcards.tCutoff), tsplits=tsplits)
-    np.save(output[0], mles)
-    np.save(output[1], weights)
