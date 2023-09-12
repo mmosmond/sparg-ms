@@ -47,7 +47,7 @@ def mle_dispersal_numeric(locations, shared_times_inverted, log_det_shared_times
         locsss = []
         kvsum = np.zeros((d,d))
         ksum = 0
-        for stss, smplss in tqdm(zip(shared_times_inverted, samples)): #loci
+        for stss, smplss in tqdm(zip(shared_times_inverted, samples), total=L): #loci
             locss = []
             kvisum = np.zeros((d,d))
             kisum = 0
@@ -217,12 +217,13 @@ def _log_likelihoodratio(locations, shared_times_inverted, log_det_shared_times,
     ksum = 0
     for locs, sts, ldst in zip(locations, shared_times_inverted, log_det_shared_times): #loop over subtrees
         k = len(sts); n += k + 1 #the plus 1 assumes times are mean centered
-        LLR += _location_loglikelihood(locs, sts.astype(float), ldst, sigma_inverted)
-        ksum += k
+        if k>0:
+            LLR += _location_loglikelihood(locs, sts.astype(float), ldst, sigma_inverted)
+            ksum += k
     d,_ = sigma_inverted.shape
-    LLR -= ksum/2 * (d*np.log(2*np.pi) + log_det_sigma)  #can factor this out over subtrees
+    if ksum>0: LLR -= ksum/2 * (d*np.log(2*np.pi) + log_det_sigma)  #can factor this out over subtrees
 
-    if important:
+    if important and ksum>0:
         # log probability of branching times given pure birth process with rate phi
         LLR += _log_birth_density(branching_times=branching_times, phi=phi, n=n) 
         # log probability of coalescence times given standard coalescent (precalculated as parameter-independent)

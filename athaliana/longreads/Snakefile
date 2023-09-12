@@ -1493,7 +1493,7 @@ rule composite_dispersal_rate:
     composite_dispersal_rate
   threads: 80
   resources:
-    time = 60 * 8
+    time = 60 * 24
   run:
     import os
     # taming numpy
@@ -1545,7 +1545,9 @@ rule composite_dispersal_rate:
     # find parameter estimates
     print('\nestimating dispersal rate')
     mle = mle_dispersal_numeric(locations=locations, shared_times_inverted=stss_mc_inv, log_det_shared_times=stss_logdet, samples=smplss, 
-                                sigma0=None, callbackF=callbackF, 
-                                important=True, branching_times=btss, phi0=None, logpcoals=lpcss)
+                                #sigma0=None, phi0=None, #make educated guess based on first tree at each locus
+                                sigma0=_sds_rho_to_sigma(0.07, 0.06, 0.5), phi0=5e-5, #guess from tCutoff=1e6 mle
+                                callbackF=callbackF, 
+                                important=True, branching_times=btss, logpcoals=lpcss)
     print('\n',mle)
     np.save(output[0], mle)
