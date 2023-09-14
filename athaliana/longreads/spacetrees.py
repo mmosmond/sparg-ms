@@ -1,20 +1,84 @@
 from scipy.optimize import minimize
+import scipy.sparse as sp
 import time
 import numpy as np
 import math
 from tqdm import tqdm 
 
-def mle_dispersal_tree(locations, shared_times_inverted):
-    """
-    Maximum likelihood estimate of dispersal rate given locations and (inverted) shared times between lineages in a tree.
-    """
+def locate_ancestors(ancestor_samples, ancestor_times, 
+                     shared_times_chopped, samples, locations, sigma, log_weights, 
+                     x0_final=None):
 
-    return np.matmul(np.matmul(np.transpose(locations), shared_times_inverted), locations) / len(locations)
+    all_ancestor_locations = []
+    # first loop over the samples we want to find ancestors of
+    for sample in tqdm(ancestor_samples):
 
-def mle_dispersal_numeric(locations, shared_times_inverted, log_det_shared_times, samples,
-                          sigma0=None, bnds=None, method='L-BFGS-B', callbackF=None,
-                          important=False, branching_times=None, phi0=None, scale_phi=None, logpcoals=None,
-                          quiet=False):
+        sts = []
+        stmrs = []
+        stms = []
+        stcis = []
+        locs_means = []
+        stcilcs = []
+        js = []
+        # next loop over trees at this locus, getting the quantities we need that are independent of the age of the ancestor
+        for stsc, smpls in zip(shared_times_chopped, samples):
+
+            i,j = _get_focal_index(sample, smpls) #subtree and index of sample
+            js.append(j)
+            st = stsc[i] #shared times in subtree
+            sts.append(st)
+            stmr = np.mean(st, axis=1) #average times in each row
+            stmrs.append(stmr)
+            stm = np.mean(st) #average times in whole matrix
+            stms.append(stm)
+            n = len(st); 
+            # note that if n=1, we get lots of empty matrices below, but the mle and var are calculated correctly (sample location and sigma*t respectively)
+
+            Tmat = np.identity(n) - [[1/n for _ in range(n)] for _ in range(n)]; Tmat = Tmat[:-1] #mean centering matrix
+            stc = np.matmul(Tmat, np.matmul(st.astype(float), np.transpose(Tmat))) #center shared times matrix
+            stci = np.linalg.inv(stc) #invert 
+            stcis.append(stci)
+
+            locs = locations[smpls[i]] #locations of samples in subtree
+            locs_mean = np.mean(locs, axis=0) #mean location
+            locs_means.append(locs_mean)
+            lc = np.matmul(Tmat, locs) #centered locations
+            stcilc = np.matmul(stci, lc) #product used below
+            stcilcs.append(stcilc)
+
+        ancestor_locations = locations[sample]
+        # now we will loop over the times we want to locate the ancestor at
+        for ancestor_time in ancestor_times:
+
+            fs = []
+            for st,stmr,stm,stci,lm,stcilc,j in zip(sts, stmrs, stms, stcis, locs_means, stcilcs, js):
+
+                n = len(st); Tmat = np.identity(n) - [[1/n for _ in range(n)] for _ in range(n)]; Tmat = Tmat[:-1] #mean centering matrix
+
+                at = _anc_times(st, ancestor_time, j) #shared times between samples and ancestor
+                atc = np.matmul(Tmat, (at[:-1] - stmr)) #center this
+                taac = at[-1] - 2*np.mean(at[:-1]) + stm #center shared times of ancestor with itself
+                mle_loc = lm + np.matmul(atc.transpose(), stcilc) #mean loc
+                var_loc = (taac - np.matmul(np.matmul(atc.transpose(), stci), atc)) * sigma #variance in loc
+                fs.append(lambda x: _lognormpdf(x, mle_loc, var_loc)) #append likelihood
+
+            # find min of negative of log of summed likelihoods (weighted by importance)
+            def g(x): 
+                return -_logsumexp([f(x) + log_weight for f,log_weight in zip(fs, log_weights)])
+            x0 = locations[sample] 
+            if x0_final is not None:
+                x0 = x0 + (x0_final - x0)*ancestor_time/ancestor_times[-1] #make a linear guess
+            mle = minimize(g, x0=x0).x
+            ancestor_locations = np.vstack([ancestor_locations,mle])
+
+        all_ancestor_locations.append(ancestor_locations)
+        
+    return np.array(all_ancestor_locations)
+
+def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, samples,
+                  sigma0=None, bnds=None, method='L-BFGS-B', callbackF=None,
+                  important=False, branching_times=None, phi0=None, scale_phi=None, logpcoals=None,
+                  quiet=False):
     """
     Numerically estimate maximum likelihood dispersal rate (and possibly branching rate) given sample locations and shared_times.
     """
@@ -63,7 +127,7 @@ def mle_dispersal_numeric(locations, shared_times_inverted, log_det_shared_times
                     loc_mc_vec = np.transpose(loc_mc).flatten() #make a vector
                     locs.append(loc_mc_vec)
                     if k>1: #need more than 1 sample in a subtree to estimate dispersal
-                        mle = mle_dispersal_tree(loc_mc, st.astype(float))
+                        mle = _mle_dispersal_tree(loc_mc, st.astype(float))
                         kvijsum += (k-1)*mle #add weighted mle dispersal rate for subtree 
                         kijsum += k-1
                 locss.append(locs)
@@ -103,6 +167,7 @@ def mle_dispersal_numeric(locations, shared_times_inverted, log_det_shared_times
     if callbackF is not None: callbackF(x0)
     t0 = time.time()
     m = minimize(f, x0=x0, bounds=bnds, method=method, callback=callbackF) #find MLE
+    if not quiet: print(m)
     if not quiet: print('finding the max took', time.time()-t0, 'seconds')
 
     if not quiet:
@@ -113,7 +178,57 @@ def mle_dispersal_numeric(locations, shared_times_inverted, log_det_shared_times
             phi = mle[-1]/scale_phi #unscale phi
             print('\nmaximum likelihood branching rate:',phi)
 
-    return m
+    return np.array([mle[0], mle[1], mle[2], phi]) 
+
+def _get_focal_index(focal_node, listoflists):
+
+    """
+    get the subtree and index within that subtree for focal_node (listoflists here is list of samples for each subtree)
+    """
+
+    for i,j in enumerate(listoflists):
+        if focal_node in j:
+            n = i
+            for k,l in enumerate(j):
+                if focal_node == l:
+                    m = k
+    return n,m
+
+def _anc_times(shared_times, ancestor_time, sample):
+    
+    taa = shared_times[0,0] - ancestor_time #shared time of ancestor with itself 
+
+    anc_times = [] 
+    for t in shared_times[sample]:
+        anc_times.append(min(t, taa)) # shared times between ancestor and each sample lineage
+
+    anc_times.append(taa) #add shared time with itself
+        
+    return np.array(anc_times)
+
+def _lognormpdf(x, mu, S):
+
+    """
+    Calculate log probability density of x, when x ~ N(mu,S)
+    """
+
+    norm_coeff = np.linalg.slogdet(S)[1] #just care about relative likelihood so drop the constant
+
+    # term in exponential (times -2)
+    err = x - mu #difference between mean and data
+    if sp.issparse(S):
+        numerator = spln.spsolve(S, err).T.dot(err) #use faster sparse methods if possible
+    else:
+        numerator = np.linalg.solve(S, err).T.dot(err) #just a fancy way of calculating err.T * S^-1  * err
+
+    return -0.5 * (norm_coeff + numerator) #add the two terms together and multiply by -1/2
+
+def _mle_dispersal_tree(locations, shared_times_inverted):
+    """
+    Maximum likelihood estimate of dispersal rate given locations and (inverted) shared times between lineages in a tree.
+    """
+
+    return np.matmul(np.matmul(np.transpose(locations), shared_times_inverted), locations) / len(locations)
 
 def _sigma_to_sds_rho(sigma):
     """

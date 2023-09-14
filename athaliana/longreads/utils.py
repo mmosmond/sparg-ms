@@ -52,4 +52,3 @@ def center_shared_times(shared_times):
   stc = np.matmul(Tmat, np.matmul(shared_times, np.transpose(Tmat))) #center shared times in subtree
  
   return stc
-

@@ -1465,7 +1465,7 @@ rule composite_dispersal_rates:
   input:
    expand(composite_dispersal_rate, Ne=Nes, m=ms, numiter=numiters, threshold=thresholds, nsamples=nsampless, tCutoff=tCutoffs) 
 
-def input_func(name, ends):
+def input_func_dispersal(name, ends):
   def input_files(wildcards):
     filenames = []
     for CHR in CHRS:
@@ -1483,11 +1483,11 @@ def input_func(name, ends):
 
 rule composite_dispersal_rate:
   input:
-    stss_mc_inv = input_func(processed_shared_times, ['mc-invs']),
-    stss_logdet = input_func(processed_shared_times, ['logdets']),
-    smplss = input_func(processed_shared_times, ['samples']),
-    btss = input_func(processed_coal_times, ['bts']),
-    lpcss = input_func(processed_coal_times, ['lpcs']),
+    stss_mc_inv = input_func_dispersal(processed_shared_times, ['mc-invs']),
+    stss_logdet = input_func_dispersal(processed_shared_times, ['logdets']),
+    smplss = input_func_dispersal(processed_shared_times, ['samples']),
+    btss = input_func_dispersal(processed_coal_times, ['bts']),
+    lpcss = input_func_dispersal(processed_coal_times, ['lpcs']),
     locs = expand(locations, CHR=CHRS, allow_missing=True)[0]
   output:
     composite_dispersal_rate
@@ -1504,7 +1504,7 @@ rule composite_dispersal_rate:
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(threads)
     os.environ["NUMEXPR_NUM_THREADS"] = str(threads)
     import numpy as np
-    from spacetrees import mle_dispersal_numeric, _sds_rho_to_sigma
+    from spacetrees import mle_dispersal, _sds_rho_to_sigma
     from tqdm import tqdm
     # load locations
     locations = np.load(input.locs)
@@ -1544,10 +1544,104 @@ rule composite_dispersal_rate:
       print('{0: 3.6f}   {1: 3.6f}   {2: 3.6f}   {3: 3.6f}'.format(x[0], x[1], x[2], x[3]))
     # find parameter estimates
     print('\nestimating dispersal rate')
-    mle = mle_dispersal_numeric(locations=locations, shared_times_inverted=stss_mc_inv, log_det_shared_times=stss_logdet, samples=smplss, 
+    mle = mle_dispersal(locations=locations, shared_times_inverted=stss_mc_inv, log_det_shared_times=stss_logdet, samples=smplss, 
                                 #sigma0=None, phi0=None, #make educated guess based on first tree at each locus
                                 sigma0=_sds_rho_to_sigma(0.07, 0.06, 0.5), phi0=5e-5, #guess from tCutoff=1e6 mle
                                 callbackF=callbackF, 
                                 important=True, branching_times=btss, logpcoals=lpcss)
     print('\n',mle)
     np.save(output[0], mle)
+
+# ------------- ancestor locations -------------
+
+ancestor_locations = processed_shared_times.replace('_sts','').replace('{end}','anc-locs')
+
+def input_func_locs(name):
+
+  def input_files(wildcards):
+    filenames = []
+    for CHR in CHRS:
+      for Ne in Nes:
+        for m in ms:
+          infile = checkpoints.get_bp.get(CHR=CHR, Ne=Ne, m=m).output[0]
+          with open(infile,'r') as f:
+            for line in f:
+              i,j = line.strip().split(' ')
+              d = {'{CHR}': CHR, '{Ne}': Ne, '{m}': m, '{start}': i, '{stop}': j}
+              string = name
+              for i,j in d.items():
+                string = string.replace(i,str(j))
+              filenames.append(string)
+    return expand(filenames, numiter=numiters, threshold=thresholds, nsamples=nsampless, tCutoff=tCutoffs)
+
+  return input_files
+
+rule locate_ancestors:
+  input:
+    input_func_locs(ancestor_locations)
+
+ruleorder: process_shared_time > locate_ancestor 
+ruleorder: process_coal_time > locate_ancestor 
+
+rule locate_ancestor:
+  input:
+    stss = shared_times,
+    locs = locations,
+    mle = composite_dispersal_rate,
+    btss = processed_coal_times.replace('{end}','bts'),
+    lpcs = processed_coal_times.replace('{end}','lpcs'),
+  output:
+    ancestor_locations 
+  threads: 1
+  run:
+    import os
+    # taming numpy
+    os.environ["OMP_NUM_THREADS"] = str(threads)
+    os.environ["GOTO_NUM_THREADS"] = str(threads)
+    os.environ["OPENBLAS_NUM_THREADS"] = str(threads)
+    os.environ["MKL_NUM_THREADS"] = str(threads)
+    os.environ["VECLIB_MAXIMUM_THREADS"] = str(threads)
+    os.environ["NUMEXPR_NUM_THREADS"] = str(threads)
+    
+    import numpy as np
+    from spacetrees import _sds_rho_to_sigma, _log_birth_density, locate_ancestors
+    from utils import chop_shared_times
+
+    # sample locations
+    locations = np.load(input.locs)
+    n = len(locations)
+
+    # who and when
+    ancestor_samples = range(n) #which samples to find ancestors of
+    tCutoff = wildcards.tCutoff
+    if tCutoff == 'None':
+      tCutoff = None
+      max_time = 1e6
+    else:
+      tCutoff = float(tCutoff)
+      max_time = tCutoff  
+    ancestor_times = np.logspace(1,np.log10(max_time),10) #times to find ancestors
+
+    # chop trees
+    stss_chopped = []
+    samples = []
+    for sts in np.load(input.stss):
+      sts_chopped, smpls = chop_shared_times(sts, tCutoff=tCutoff) #shared times and sample indices in each subtree
+      stss_chopped.append(sts_chopped)
+      samples.append(smpls)
+    
+    #dispersal rate
+    mle = np.load(input.mle) #mle dispersal rate and branching rate
+    sigma = _sds_rho_to_sigma(mle[0], mle[1], mle[2]) #as covariance matrix
+
+    # importance weights
+    btss = np.load(input.btss, allow_pickle=True) #birth times
+    phi = mle[-1] #mle branching rate
+    lbds = np.array([_log_birth_density(bts, phi, n) for bts in btss]) #log probability densities of birth times
+    lpcs = np.load(input.lpcs, allow_pickle=True).astype(float) #log probability densities of coalescence times
+    log_weights = lbds - lpcs #log importance weights
+ 
+    # locate 
+    ancestor_locations = locate_ancestors(ancestor_samples, ancestor_times, 
+                                          stss_chopped, samples, locations, sigma, log_weights)
+    np.save(output[0], ancestor_locations)
