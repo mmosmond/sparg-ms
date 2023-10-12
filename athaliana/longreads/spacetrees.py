@@ -35,7 +35,7 @@ def locate_ancestors(ancestor_samples, ancestor_times,
             # note that if n=1, we get lots of empty matrices below, but the mle and var are calculated correctly (sample location and sigma*t respectively)
 
             Tmat = np.identity(n) - [[1/n for _ in range(n)] for _ in range(n)]; Tmat = Tmat[:-1] #mean centering matrix
-            stc = np.matmul(Tmat, np.matmul(st.astype(float), np.transpose(Tmat))) #center shared times matrix
+            stc = np.matmul(Tmat, np.matmul(st, np.transpose(Tmat))) #center shared times matrix
             stci = np.linalg.inv(stc) #invert 
             stcis.append(stci)
 
@@ -78,7 +78,7 @@ def locate_ancestors(ancestor_samples, ancestor_times,
 def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, samples,
                   sigma0=None, bnds=None, method='L-BFGS-B', callbackF=None,
                   important=False, branching_times=None, phi0=None, scale_phi=None, logpcoals=None,
-                  quiet=False):
+                  quiet=False, BLUP=False):
     """
     Numerically estimate maximum likelihood dispersal rate (and possibly branching rate) given sample locations and shared_times.
     """
@@ -90,7 +90,7 @@ def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, sample
 
     # prepare locations
     if not quiet: print('\npreparing locations')
-    if sigma0 is not None:
+    if sigma0 is not None and not BLUP:
         locsss = []
         for smplss in tqdm(samples): #loci
             locss = []
@@ -107,10 +107,13 @@ def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, sample
             locsss.append(locss)
     # and potentially find decent initial dispersal rate
     else:
-        if not quiet: print('and initializing dispersal rate')
+        if not quiet: 
+            if not BLUP: print('and initializing dispersal rate')
+            else: print('and finding best linear unbiased predictor (BLUP) of disprersal rate')
         locsss = []
         kvsum = np.zeros((d,d))
         ksum = 0
+        blup = np.zeros((d,d))
         for stss, smplss in tqdm(zip(shared_times_inverted, samples), total=L): #loci
             locss = []
             kvisum = np.zeros((d,d))
@@ -127,19 +130,29 @@ def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, sample
                     loc_mc_vec = np.transpose(loc_mc).flatten() #make a vector
                     locs.append(loc_mc_vec)
                     if k>1: #need more than 1 sample in a subtree to estimate dispersal
-                        mle = _mle_dispersal_tree(loc_mc, st.astype(float))
+                        mle = _mle_dispersal_tree(loc_mc, st)
                         kvijsum += (k-1)*mle #add weighted mle dispersal rate for subtree 
-                        kijsum += k-1
+                        kijsum += k-1 #and weight
                 locss.append(locs)
-                if kisum == 0: #just use first tree at each locus to initialize sigma (alternatively could average over tree mles to get BLUP)
+                if kisum == 0 and not BLUP: #just use first tree at each locus to initialize sigma
                     kvisum += kvijsum #add weighted mle dispersal rate for tree
                     kisum += kijsum
+                if BLUP:
+                    blup += kvijsum/kijsum #add mle for this tree
             locsss.append(locss)
-            kvsum += kvisum #add weighted mle dispersal rate for locus
-            ksum += kisum
-        sigma0 = kvsum/ksum
-        if not quiet: print('initial dispersal rate:\n',sigma0)
-    x0 = _sigma_to_sds_rho(sigma0) #convert to standard deviations and correlation
+            if not BLUP:
+                kvsum += kvisum #add weighted mle dispersal rate for locus
+                ksum += kisum
+        if not BLUP:
+            sigma0 = kvsum/ksum
+            if not quiet: print('initial dispersal rate:\n',sigma0)
+
+    if BLUP:
+        blup = blup/(L*M)
+        if not quiet: print('BLUP dispersal rate:\n',blup)
+        return _sigma_to_sds_rho(blup) #best linear unbiased predictor (returned as sds and corr, like numerical search below)
+    
+    x0 = _sigma_to_sds_rho(sigma0) #convert initial dispersal rate to standard deviations and correlation, to feed into numerical search
 
     # initializing branching rate
     if important:
@@ -257,7 +270,7 @@ def _sum_mc(locations, shared_times_inverted, log_det_shared_times,
         # reformulate parameters
         sigma = _sds_rho_to_sigma(x[0],x[1],x[2]) #as matrix FIX: assumes 2d
         log_det_sigma = np.linalg.slogdet(sigma)[1] #log of determinant
-        sigma_inverted = np.linalg.pinv(sigma) #inverse
+        sigma_inverted = np.linalg.inv(sigma) #inverse
         phi = None
         if important: 
             phi = x[-1]/scale_phi
@@ -333,7 +346,7 @@ def _log_likelihoodratio(locations, shared_times_inverted, log_det_shared_times,
     for locs, sts, ldst in zip(locations, shared_times_inverted, log_det_shared_times): #loop over subtrees
         k = len(sts); n += k + 1 #the plus 1 assumes times are mean centered
         if k>0:
-            LLR += _location_loglikelihood(locs, sts.astype(float), ldst, sigma_inverted)
+            LLR += _location_loglikelihood(locs, sts, ldst, sigma_inverted)
             ksum += k
     d,_ = sigma_inverted.shape
     if ksum>0: LLR -= ksum/2 * (d*np.log(2*np.pi) + log_det_sigma)  #can factor this out over subtrees
