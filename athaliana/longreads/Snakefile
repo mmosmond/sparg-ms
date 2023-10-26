@@ -1,8 +1,7 @@
 # ------------ python modules ---------
+
 # pip install ragtag #for scaffolding hifi assemblies
-
 # pip install biopython #convert hap to est
-
 
 # ------------  paths --------------------
 
@@ -14,13 +13,17 @@ scratch = '/scratch/m/mmosmond/mmosmond/'
 
 # ------------- variables ------------
 
-CHRS= range(1,6) #chromosome numbers
+CHRS = range(1,6) #chromosome numbers
 chr_lens = [30427671, 19698289, 23459830, 18585056, 26975502] #chromosome lengths (TAIR10)
-#Nes = ['10000','20000','100000']
-Nes = ['100000'] #prior Ne for relate
+Nes = ['10000','20000','100000'] #prior Ne for relate
+Nes = ['100000'] 
 ms = ['7e-9'] #prior m for relate
 numiters = [10] #number of MCMC iterations when estimating pop size
 thresholds = [0.5] #, 0.9] #fraction of trees to drop when estimating pop size
+TREESKIP = 100 #use every TREESKIPth tree
+nsampless = [1000] #number of times to sample branch lengths at chosen trees
+tCutoffs = [None, int(1e6), int(1e5), int(1e4)] #when to chop off the trees for dispersal rate estimates
+tCutoffs = [int(1e4)]
 
 ##########################################################################
 # RULES
@@ -1157,7 +1160,6 @@ rule treeseq:
 
 # ------------ decide which trees to sample ----------------
 
-TREESKIP = 100 #use every TREESKIPth tree
 bps = ancmut.replace('{end}','bps')
 
 rule get_bps:
@@ -1199,7 +1201,6 @@ checkpoint get_bp:
 
 # ------------ sample branch lengths at a particular location -------------
 
-nsampless = [1000] #number of times to sample branch lengths
 tree = ancmutcoal.replace('{end}','_{start}-{stop}bps_{nsamples}nsamples.newick')
 
 def input_func(name):
@@ -1352,7 +1353,6 @@ rule location:
 
 processed_shared_times = shared_times.replace('_sts.npy','_sts_{tCutoff}tCutoff_{end}.npy')
 ends = ['mc-invs','logdets','samples']
-tCutoffs = [None, int(1e6), int(1e5), int(1e4)]
 
 rule process_shared_time:
   input:
@@ -1508,35 +1508,40 @@ rule composite_dispersal_rate:
     from tqdm import tqdm
     # load locations
     locations = np.load(input.locs)
+    # subsample for testing
+    L = len(input.stss_mc_inv)
+    M = float(wildcards.nsamples)
+    #L = 10 #number of loci
+    #M = 10 #number of trees per locus
     #mean centered and inverted shared time matrices
     print('\nloading inverted shared times matrices')
     stss_mc_inv = []
-    for f in tqdm(input.stss_mc_inv):
-      sts_mc_inv = np.load(f, allow_pickle=True)
+    for f in tqdm(input.stss_mc_inv[:L]):
+      sts_mc_inv = np.load(f, allow_pickle=True)[:M]
       stss_mc_inv.append(sts_mc_inv)
     #log determinants of mean centered shared time matrices    
     print('\nloading log determinants of shared times matrices')
     stss_logdet = []
-    for f in tqdm(input.stss_logdet):
-      sts_logdet = np.load(f, allow_pickle=True)
+    for f in tqdm(input.stss_logdet[:L]):
+      sts_logdet = np.load(f, allow_pickle=True)[:M]
       stss_logdet.append(sts_logdet) 
     #subtree sampless    
     print('\nloading samples of shared times matrices')
     smplss = []
-    for f in tqdm(input.smplss):
-      smpls = np.load(f, allow_pickle=True)
+    for f in tqdm(input.smplss[:L]):
+      smpls = np.load(f, allow_pickle=True)[:M]
       smplss.append(smpls) 
     #branching times
     print('\nloading branching times')
     btss = []
-    for f in tqdm(input.btss):
-      bts = np.load(f, allow_pickle=True) 
+    for f in tqdm(input.btss[:L]):
+      bts = np.load(f, allow_pickle=True)[:M] 
       btss.append(bts)
     #log probability of coalescent times    
     print('\nloading log probability of coalescence times')
     lpcss = []
-    for f in tqdm(input.lpcss):
-      lpcs = np.load(f, allow_pickle=True) 
+    for f in tqdm(input.lpcss[:L]):
+      lpcs = np.load(f, allow_pickle=True)[:M] 
       lpcss.append(lpcs)
     # function for updates
     def callbackF(x):
@@ -1545,10 +1550,10 @@ rule composite_dispersal_rate:
     # find parameter estimates
     print('\nestimating dispersal rate')
     mle = mle_dispersal(locations=locations, shared_times_inverted=stss_mc_inv, log_det_shared_times=stss_logdet, samples=smplss, 
-                                #sigma0=None, phi0=None, #make educated guess based on first tree at each locus
-                                sigma0=_sds_rho_to_sigma(0.07, 0.06, 0.5), phi0=5e-5, #guess from tCutoff=1e6 mle
-                                callbackF=callbackF, 
-                                important=True, branching_times=btss, logpcoals=lpcss)
+                        sigma0=None, phi0=None, #make educated guess based on first tree at each locus
+                        #sigma0=_sds_rho_to_sigma(0.07, 0.06, 0.5), phi0=5e-5, #guess from tCutoff=1e6 mle
+                        callbackF=callbackF, 
+                        important=True, branching_times=btss, logpcoals=lpcss)
     print('\n',mle)
     np.save(output[0], mle)
 # these take <12h, except for tCutoff=1e4 which took just over 16h
@@ -1640,40 +1645,23 @@ rule locate_ancestor:
     btss = np.load(input.btss, allow_pickle=True) #birth times
     phi = mle[-1] #mle branching rate
     lbds = np.array([_log_birth_density(bts, phi, n) for bts in btss]) #log probability densities of birth times
-    lpcs = np.load(input.lpcs, allow_pickle=True).astype(float) #log probability densities of coalescence times
+    lpcs = np.load(input.lpcs, allow_pickle=True) #log probability densities of coalescence times
     log_weights = lbds - lpcs #log importance weights
  
+    # subsample for testing
+    M = float(wildcards.nsamples)
+    #M = 100 #number of trees
+
     # locate 
     ancestor_locations = locate_ancestors(ancestor_samples, ancestor_times, 
-                                          stss_chopped, samples, locations, sigma, log_weights)
+                                          stss_chopped[:M], samples[:M], locations, sigma, log_weights[:M])
     np.save(output[0], ancestor_locations)
 # taking about 16m each with 1 thread
 # snakemake locate_ancestors --profile slurm --groups locate_ancestor=locate --group-components locate=80 --jobs 11
 
 # ------------- ancestor locations using full trees -------------
 
-tCutoffs = [int(1e4)]
 ancestor_locations_full = processed_shared_times.replace('_sts','').replace('{end}','anc-locs_full-trees')
-
-def input_func_locs(name):
-
-  def input_files(wildcards):
-    filenames = []
-    for CHR in CHRS:
-      for Ne in Nes:
-        for m in ms:
-          infile = checkpoints.get_bp.get(CHR=CHR, Ne=Ne, m=m).output[0]
-          with open(infile,'r') as f:
-            for line in f:
-              i,j = line.strip().split(' ')
-              d = {'{CHR}': CHR, '{Ne}': Ne, '{m}': m, '{start}': i, '{stop}': j}
-              string = name
-              for i,j in d.items():
-                string = string.replace(i,str(j))
-              filenames.append(string)
-    return expand(filenames, numiter=numiters, threshold=thresholds, nsamples=nsampless, tCutoff=tCutoffs)
-
-  return input_files
 
 rule locate_ancestors_full:
   input:
@@ -1736,7 +1724,7 @@ rule locate_ancestor_full:
     btss = np.load(input.btss, allow_pickle=True) #birth times
     phi = mle[-1] #mle branching rate
     lbds = np.array([_log_birth_density(bts, phi, n) for bts in btss]) #log probability densities of birth times
-    lpcs = np.load(input.lpcs, allow_pickle=True).astype(float) #log probability densities of coalescence times
+    lpcs = np.load(input.lpcs, allow_pickle=True) #log probability densities of coalescence times
     log_weights = lbds - lpcs #log importance weights
  
     # locate 

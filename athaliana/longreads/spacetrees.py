@@ -6,8 +6,12 @@ import math
 from tqdm import tqdm 
 
 def locate_ancestors(ancestor_samples, ancestor_times, 
-                     shared_times_chopped, samples, locations, sigma, log_weights, 
-                     x0_final=None):
+                     shared_times_chopped, samples, locations, log_weights, 
+                     sigma=None, x0_final=None, BLUP=False):
+
+    """
+    Numerically estimate maximum likelihood ancestor locations given sample locations and shared times.
+    """
 
     all_ancestor_locations = []
     # first loop over the samples we want to find ancestors of
@@ -51,6 +55,7 @@ def locate_ancestors(ancestor_samples, ancestor_times,
         for ancestor_time in ancestor_times:
 
             fs = []
+            mles = []
             for st,stmr,stm,stci,lm,stcilc,j in zip(sts, stmrs, stms, stcis, locs_means, stcilcs, js):
 
                 n = len(st); Tmat = np.identity(n) - [[1/n for _ in range(n)] for _ in range(n)]; Tmat = Tmat[:-1] #mean centering matrix
@@ -59,33 +64,51 @@ def locate_ancestors(ancestor_samples, ancestor_times,
                 atc = np.matmul(Tmat, (at[:-1] - stmr)) #center this
                 taac = at[-1] - 2*np.mean(at[:-1]) + stm #center shared times of ancestor with itself
                 mle_loc = lm + np.matmul(atc.transpose(), stcilc) #mean loc
-                var_loc = (taac - np.matmul(np.matmul(atc.transpose(), stci), atc)) * sigma #variance in loc
-                fs.append(lambda x: _lognormpdf(x, mle_loc, var_loc)) #append likelihood
+                if BLUP:
+                    mles.append(mle_loc)
+                else:
+                    var_loc = (taac - np.matmul(np.matmul(atc.transpose(), stci), atc)) * sigma #variance in loc
+                    fs.append(lambda x: _lognormpdf(x, mle_loc, var_loc)) #append likelihood
 
-            # find min of negative of log of summed likelihoods (weighted by importance)
-            def g(x): 
-                return -_logsumexp([f(x) + log_weight for f,log_weight in zip(fs, log_weights)])
-            x0 = locations[sample] 
-            if x0_final is not None:
-                x0 = x0 + (x0_final - x0)*ancestor_time/ancestor_times[-1] #make a linear guess
-            mle = minimize(g, x0=x0).x
-            ancestor_locations = np.vstack([ancestor_locations,mle])
+            if BLUP:
+                blup = np.zeros(len(locations[sample])) 
+                tot_weight = 0
+                for mle, log_weight in zip(mles, log_weights):
+                     blup += mle * np.exp(log_weight)
+                     tot_weight += np.exp(log_weight)
+                blup = blup/tot_weight
+                ancestor_locations = np.vstack([ancestor_locations,blup])
+
+            else:
+                # find min of negative of log of summed likelihoods (weighted by importance)
+                def g(x): 
+                    return -_logsumexp([f(x) + log_weight for f,log_weight in zip(fs, log_weights)])
+                x0 = locations[sample] 
+                if x0_final is not None:
+                    x0 = x0 + (x0_final - x0)*ancestor_time/ancestor_times[-1] #make a linear guess
+                mle = minimize(g, x0=x0).x
+                ancestor_locations = np.vstack([ancestor_locations,mle])
 
         all_ancestor_locations.append(ancestor_locations)
         
     return np.array(all_ancestor_locations)
 
-def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, samples,
+def mle_dispersal(locations, shared_times_inverted, samples, log_det_shared_times=None, 
                   sigma0=None, bnds=None, method='L-BFGS-B', callbackF=None,
                   important=False, branching_times=None, phi0=None, scale_phi=None, logpcoals=None,
                   quiet=False, BLUP=False):
+
     """
-    Numerically estimate maximum likelihood dispersal rate (and possibly branching rate) given sample locations and shared_times.
+    Numerically estimate maximum likelihood dispersal rate (and possibly branching rate) given sample locations and shared times.
     """
 
-    L = len(log_det_shared_times)
-    M = len(log_det_shared_times[0])
-    n, d = locations.shape
+    L = len(shared_times_inverted)
+    M = len(shared_times_inverted[0])
+    try: 
+        n, d = locations.shape
+    except:
+        n = len(locations)
+        d = 1
     if not quiet: print('number of loci:',L,'\nnumber of trees per locus:',M,'\nnumber of samples:',n,'\nnumber of spatial dimensions:',d)
 
     # prepare locations
@@ -109,7 +132,7 @@ def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, sample
     else:
         if not quiet: 
             if not BLUP: print('and initializing dispersal rate')
-            else: print('and finding best linear unbiased predictor (BLUP) of disprersal rate')
+            else: print('and finding best linear unbiased predictor (BLUP) of dispersal rate')
         locsss = []
         kvsum = np.zeros((d,d))
         ksum = 0
@@ -144,7 +167,7 @@ def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, sample
                 kvsum += kvisum #add weighted mle dispersal rate for locus
                 ksum += kisum
         if not BLUP:
-            sigma0 = kvsum/ksum
+            sigma0 = kvsum/ksum #this is the mle dispersal rate over loci and subtrees (using just the first tree at each locus)
             if not quiet: print('initial dispersal rate:\n',sigma0)
 
     if BLUP:
@@ -171,9 +194,12 @@ def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, sample
 
     # impose bounds on parameters
     if bnds is None:
-        bnds = [(1e-6,None),(1e-6,None),(-0.99,0.99)] #FIX: assumes 2d
-    if important:
-        bnds.append((1e-6,None))
+        bnds = [(1e-6,None)] #sdx
+        if d==2:
+            bnds.append((1e-6,None)) #sdy
+            bnds.append((-0.99,0.99)) #corr
+        if important:
+            bnds.append((1e-6,None)) #scaled phi
 
     # find mle
     if not quiet: print('\nsearching for maximum likelihood parameters...')
@@ -183,15 +209,18 @@ def mle_dispersal(locations, shared_times_inverted, log_det_shared_times, sample
     if not quiet: print(m)
     if not quiet: print('finding the max took', time.time()-t0, 'seconds')
 
+    mle = m.x
+    if important:
+        mle[-1] = mle[-1]/scale_phi #unscale phi
     if not quiet:
-        mle = m.x
-        sigma = _sds_rho_to_sigma(mle[0],mle[1],mle[2]) #convert to covariance matrix #FIX: assumes 2d
-        print('\nmaximum likelihood dispersal rate:\n',sigma)
         if important:
-            phi = mle[-1]/scale_phi #unscale phi
-            print('\nmaximum likelihood branching rate:',phi)
+            sigma = _sds_rho_to_sigma(mle[:-1]) #convert to covariance matrix
+            print('\nmaximum likelihood branching rate:',mle[-1])
+        else:
+            sigma = _sds_rho_to_sigma(mle)
+        print('\nmaximum likelihood dispersal rate:\n',sigma)
 
-    return np.array([mle[0], mle[1], mle[2], phi]) 
+    return mle 
 
 def _get_focal_index(focal_node, listoflists):
 
@@ -208,6 +237,10 @@ def _get_focal_index(focal_node, listoflists):
     return n,m
 
 def _anc_times(shared_times, ancestor_time, sample):
+
+    """
+    get shared times with ancestor 
+    """
     
     taa = shared_times[0,0] - ancestor_time #shared time of ancestor with itself 
 
@@ -237,6 +270,7 @@ def _lognormpdf(x, mu, S):
     return -0.5 * (norm_coeff + numerator) #add the two terms together and multiply by -1/2
 
 def _mle_dispersal_tree(locations, shared_times_inverted):
+
     """
     Maximum likelihood estimate of dispersal rate given locations and (inverted) shared times between lineages in a tree.
     """
@@ -244,18 +278,23 @@ def _mle_dispersal_tree(locations, shared_times_inverted):
     return np.matmul(np.matmul(np.transpose(locations), shared_times_inverted), locations) / len(locations)
 
 def _sigma_to_sds_rho(sigma):
+
     """
-    Convert 2x2 covariance matrix to sds and correlation
+    Convert 1x1 or 2x2 covariance matrix to sds and correlation
     """
-    
+    d = len(sigma)
+ 
     sdx = sigma[0,0]**0.5
-    sdy = sigma[1,1]**0.5
-    rho = sigma[0,1]/(sdx * sdy) #note that small sdx and sdy will raise errors
-    
-    return [sdx, sdy, rho]
+    if d==1:
+        return [sdx]
+    elif d==2:
+        sdy = sigma[1,1]**0.5
+        rho = sigma[0,1]/(sdx * sdy) #note that small sdx and sdy will raise errors
+        return [sdx, sdy, rho]
 
 def _sum_mc(locations, shared_times_inverted, log_det_shared_times,
             important=False, branching_times=None, scale_phi=None, logpcoals=None):
+
     """
     Negative log composite likelihood of parameters x given the locations and shared times at all loci and subtrees, as function of x.
     """
@@ -268,12 +307,14 @@ def _sum_mc(locations, shared_times_inverted, log_det_shared_times,
     def sumf(x):
 
         # reformulate parameters
-        sigma = _sds_rho_to_sigma(x[0],x[1],x[2]) #as matrix FIX: assumes 2d
+        if important:
+            sigma = _sds_rho_to_sigma(x[:-1])
+            phi = x[-1]/scale_phi
+        else:
+            sigma = _sds_rho_to_sigma(x)
+            phi = None 
         log_det_sigma = np.linalg.slogdet(sigma)[1] #log of determinant
         sigma_inverted = np.linalg.inv(sigma) #inverse
-        phi = None
-        if important: 
-            phi = x[-1]/scale_phi
 
         # calculate negative log composite likelihood ratio
         # by subtracting log likelihood ratio at each locus
@@ -286,18 +327,25 @@ def _sum_mc(locations, shared_times_inverted, log_det_shared_times,
     
     return sumf
 
-def _sds_rho_to_sigma(sdx,sdy,rho):
-    """
-    Convert sds and correlation to 2x2 covariance matrix
-    """
+def _sds_rho_to_sigma(x):
 
-    cov = sdx*sdy*rho
-    sigma = np.array([[sdx**2, cov], [cov, sdy**2]])
+    """
+    Convert sds and correlation to 1x1 or 2x2 covariance matrix
+    """
+    sdx = x[0]
+    if len(x) == 1:
+        sigma = np.array([[sdx**2]])
+    else:
+        sdy = x[1]
+        rho = x[2]
+        cov = sdx*sdy*rho
+        sigma = np.array([[sdx**2, cov], [cov, sdy**2]])
 
     return sigma
 
 def _mc(locations, shared_times_inverted, log_det_shared_times, sigma_inverted, log_det_sigma,
         important=False, branching_times=None, phi=None, logpcoals=None):
+
     """
     Monte Carlo estimate of log of likelihood ratio of the locations given parameters (sigma,phi) vs data given standard coalescent, for a given locus
     """
@@ -320,6 +368,7 @@ def _mc(locations, shared_times_inverted, log_det_shared_times, sigma_inverted, 
     return _logsumexp(np.array(LLRs)) #sum likelihood ratios over trees then take log
 
 def _logsumexp(a):
+
     """
     Take the log of a sum of exponentials without losing information.
     """
@@ -334,11 +383,11 @@ def _logsumexp(a):
 
 def _log_likelihoodratio(locations, shared_times_inverted, log_det_shared_times, sigma_inverted, log_det_sigma,
                          important=False, branching_times=None, phi=None, logpcoals=None):
+
     """ 
     Log of likelihood ratio of parameters under branching brownian motion vs standard coalescent.
     """
- 
- 
+  
     # log likelihood of dispersal rate
     LLR = 0
     n = 0
@@ -360,6 +409,7 @@ def _log_likelihoodratio(locations, shared_times_inverted, log_det_shared_times,
     return LLR
 
 def _location_loglikelihood(locations, shared_times_inverted, log_det_shared_times, sigma_inverted):
+
     """
     Log probability density of locations when locations ~ MVN(0,sigma_inverted*shared_times_inverted).
     """
@@ -374,6 +424,7 @@ def _location_loglikelihood(locations, shared_times_inverted, log_det_shared_tim
     return -0.5 * (logcoeff + exponent) #add the two terms together and multiply by -1/2
 
 def _log_birth_density(branching_times, phi, n, condition_on_n=True):
+
     """
     Log probability of branching times given Yule process with branching rate phi.
     """

@@ -1,12 +1,5 @@
 initialize() {
 
-	defineConstant("data_dir", 'data/');
-	fname = ("slim_" + asInteger(L) + "L_" + RBP + "RBP_" + format("%.1f", LAMBDA) + "LAMBDA_" +
-		 format("%.1f", K) + "K_" + W + "W_" + SIGMAi + "SIGMAi_" +
-		 SIGMAd + "SIGMAd_" + MAXT + "MAXT_");
-	defineConstant("filename", fname + nrep);
-	defineConstant("output", data_dir + "/" + filename + ".trees");
- 
         initializeSLiMModelType("nonWF"); // non Wright Fisher
         initializeSLiMOptions(dimensionality="xy"); // two spatial dimensions
         initializeTreeSeq(); // record the true tree sequence (can also speed things up)
@@ -18,29 +11,36 @@ initialize() {
         initializeRecombinationRate(RBP); // recombination rate per base
 
         // spatial interaction for local competition
-        initializeInteractionType("i1", "xy", reciprocal=T, maxDistance = 3*SIGMAi); // define interaction type i1, in two spatial dimensions, where individual A has the same effect on B that B does on A (this speeds up computation), and only individuals within distance 3*SIGMA interact (again to speed things up)  
-        i1.setInteractionFunction("n", 1.0/(2*PI*SIGMAi^2), SIGMAi); // convert distance to interaction strength using a Gaussian (n for normal), with maximum value 1/(2pi*sigma^2) and standard deviation sigma (ie, this is truly and normal PDF with mean 0 and variance sigma^2)
+        initializeInteractionType("i1", "xy", reciprocal=T, maxDistance = 3*SIGMAcomp); // define interaction type i1, in two spatial dimensions, where individual A has the same effect on B that B does on A (this speeds up computation), and only individuals within distance 3*SIGMA interact (again to speed things up)  
+        i1.setInteractionFunction("n", 1.0/(2*PI*SIGMAcomp^2), SIGMAcomp); // convert distance to interaction strength using a Gaussian (n for normal), with maximum value 1/(2pi*sigma^2) and standard deviation sigma (ie, this is truly and normal PDF with mean 0 and variance sigma^2)
         
         // spatial interaction for mate choice
-        initializeInteractionType("i2", "xy", reciprocal=T, maxDistance = 3*SIGMAd); // define interaction type i2, in two spatial dimensions, where individual A has the same effect on B that B does on A (this speeds up computation), and only individuals within distance 3*SIGMA interact (again to speed things up)  
-        i2.setInteractionFunction("n", 1.0/(2*PI*SIGMAd^2), SIGMAd); // convert distance to interaction strength using a Gaussian (n for normal), with maximum value 1/(2pi*sigma^2) and standard deviation sigma (ie, this is truly and normal PDF with mean 0 and variance sigma^2)
+        initializeInteractionType("i2", "xy", reciprocal=T, maxDistance = 3*SIGMAmate); // define interaction type i2, in two spatial dimensions, where individual A has the same effect on B that B does on A (this speeds up computation), and only individuals within distance 3*SIGMA interact (again to speed things up)  
+        i2.setInteractionFunction("n", 1.0/(2*PI*SIGMAmate^2), SIGMAmate); // convert distance to interaction strength using a Gaussian (n for normal), with maximum value 1/(2pi*sigma^2) and standard deviation sigma (ie, this is truly and normal PDF with mean 0 and variance sigma^2)
     }
 
     reproduction() {
         neighbor_density = i1.totalOfNeighborStrengths(individual); // sum of interaction strengths
         num_offspring = rpois(1, LAMBDA / (1 + neighbor_density / K)); // poisson number of offspring with mean LAMBDA/(1+n_d/K), ie Beverton-Holt density dependence
-        mate = i2.drawByStrength(individual, 1);  // single mate for all offspring (ie monogamy), with mate chosen randomly based on interaction strength
-        if (size(mate) > 0) { // if there is a mate (possible none within interacting distance, in which case there are no offspring produced)
-            for (k in seqLen(num_offspring)) {
-                offspring = p1.addCrossed(individual, mate); //make offspring by sexual reproduction
-                pos = individual.spatialPosition + rnorm(2, 0, SIGMAd); // set position of offspring as random normal in both directions
+        for (i in seqLen(num_offspring)) {
+            if (runif(1) < selfing) {
+                offspring = p1.addSelfed(individual);
+                pos = individual.spatialPosition + rnorm(2, 0, SIGMAdisp); // set position of offspring as random normal in both directions
                 offspring.setSpatialPosition(p1.pointReflected(pos)); // put offspring in its place
+            }
+            else {        
+                mate = i2.drawByStrength(individual, 1);  // random mate for each outcrossed offspring 
+                if (size(mate) > 0) { // if there is a mate (possible none within interacting distance, in which case there are no offspring produced)
+                    offspring = p1.addCrossed(individual, mate); //make offspring by sexual reproduction
+                    pos = individual.spatialPosition + rnorm(2, 0, SIGMAdisp); // set position of offspring as random normal in both directions
+                    offspring.setSpatialPosition(p1.pointReflected(pos)); // put offspring in its place
+                }
             }
         }
     }
     
     1 early() {
-        sim.rescheduleScriptBlock(s1, start=MAXT, end=MAXT); //define end point of sim
+        community.rescheduleScriptBlock(s1, start=MAXT, end=MAXT); //define end point of sim
 	sim.addSubpop("p1", asInteger(round(K * W * W))); //set population size at carrying capacity
         p1.setSpatialBounds(c(0.0, 0.0, W, W)); //set spatial plane
         p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(round(K*W*W)))); // start with uniform distribution across range
@@ -53,10 +53,10 @@ initialize() {
     }
 
     late() {
-        i1.evaluate(); //calculate interactions
-    	i2.evaluate();
-        if (sim.generation % 1000 == 0) {
-	   catn(sim.generation + "/" + MAXT);
+        i1.evaluate(p1); //calculate interactions
+    	i2.evaluate(p1);
+        if (community.tick % 1000 == 0) {
+	   catn(community.tick + "/" + MAXT);
 	}
      }
 
