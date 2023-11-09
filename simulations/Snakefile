@@ -1,7 +1,5 @@
 # -------------- python modules ---------------
 
-import numpy as np
-
 # ------------- paths ------------------
 
 DATADIR = 'data/' #where to put outputs
@@ -9,7 +7,7 @@ PROGRAMDIR = 'programs/' #where to put programs
 
 #  ----------- parameters -----------------
 
-# required for SLiM
+# required for SLiM simulations
 Ls = [int(1e8)] #number of basepairs
 RBPs = [1e-8] #per base pair recombination rate
 LAMBDAs = [2.0] #mean offspring per parent when no competition
@@ -23,55 +21,44 @@ MAXTs = [20000] #number of gens to run sim for (should be at least 4*W**2*K)
 NREPS = 10 #number of reps
 nreps = range(NREPS)
 
-# required for trees
+# required for processing trees
 Nes = [5000] #Ne for recapitation, make roughly W**2 * K
 Us = [1e-8] #per base pair mutation rate
 ks = [50] #number of individuals to sample for tree-sequence (this is half the number of chromosomes)
 numiters = [5] #number of mcmc iterations to do when inferring coalescence rates
 thresholds = [0.5] #fraction of trees to drop when inferring coalescence relates
-
 treeskips = [100] #use every TREESKIPth tree
 Ms = [1000] #number of samples of each tree for importance sampling
 tCutoffs = [100,1000,10000,None] #veil of ignorance: only use info in this time to estimate dispersal
 
-# for 1 epoch dispersal rates 
-bnds = ((1e-6,None), (1e-6,None), (-0.99,0.99), (1e-6,None)) #bounds on parameters being estimated
-nloci = 100
-loci = range(nloci)
-which_sites = np.linspace(0, 1e8-1e3, nloci, dtype=int) #bp at which to get trees for mles, note we subtract some off L bc inferred sequences sometimes a bit shorter (as they come from the VCF, which lacks info on total genome length)
-method = 'L-BFGS-B' #method for minimum finding
-##method = 'SLSQP'
-scale_phi = 100 #scale branching rate in mle finder
-per_locus_SIGMAds = [0.5] #only calculate per locus mles for these dispersal rates (mostly care about mcles)
+## for ancestor location sims
+#anc_reps = range(1) #number of replicates for retained ancestor sims
+#retain_gens = range(10,1001,10) #generations (from present) to retain ancestors in
+#retain_gens_str = 'c('+','.join(map(str,retain_gens))+')' #reformat in Eidos
+#anc_SIGMAds = [0.5] #SD of mate choice and dispersal kernal (symmetric, no correlation) 
+#anc_nloci = 100 #number of loci to use
+##anc_which_sites = np.linspace(0, 1e8-1e3, anc_nloci, dtype=int) #bp at which to get trees for mles, note we subtract some off L bc inferred sequences sometimes a bit shorter (as they come from the VCF, which lacks info on total genome length)
+#anc_times  = retain_gens #choose times to locate ancestors
+#styles = ['MLE','BLUP'] #different methods to locate ancestors
+#anc_tCutoffs = [10000] #time cutoffs for estimating dispersal
+#anc_loctCutoffs = [10000] #time cutoffs for locating ancestors (note that we might want to use trees with a smaller tCutoff to estimate dispersal more accurately, then apply this dispersal rate to deeper trees)
+#
+## for 2 epoch sims
+#SIGMAd1s = [0.25, 0.5] #[0.5,1] #dispersal in most recent epoch
+#SIGMAd2s = [0.25, 0.5] #[0.5,1] #dispersal in most distant epoch
+#T12s = [100] #gen in past when dispersal rate changes
+#epoch_reps = range(10) #number of reps to get mcles
+#epoch_mle_reps = range(1) #number of reps to get per locus mles
+#epoch_bnds = ((1e-6,None), (1e-6,None), (-0.99,0.99), (1e-6,None), (1e-6,None), (-0.99,0.99), (1e-6,None)) #bounds on parameters being estimated
+#epoch_Ks = [4.0] #might have to increase density for small sigmas, since this is how mate choice is determined 
+#epoch_Nes = [10000] #make K * W^2
+#epoch_tCutoffs = [int(1e3)]#,int(1e4)]
 
-# for ancestor location sims
-anc_reps = range(1) #number of replicates for retained ancestor sims
-retain_gens = range(10,1001,10) #generations (from present) to retain ancestors in
-retain_gens_str = 'c('+','.join(map(str,retain_gens))+')' #reformat in Eidos
-anc_SIGMAds = [0.5] #SD of mate choice and dispersal kernal (symmetric, no correlation) 
-anc_nloci = 100 #number of loci to use
-anc_which_sites = np.linspace(0, 1e8-1e3, anc_nloci, dtype=int) #bp at which to get trees for mles, note we subtract some off L bc inferred sequences sometimes a bit shorter (as they come from the VCF, which lacks info on total genome length)
-anc_times  = retain_gens #choose times to locate ancestors
-styles = ['MLE','BLUP'] #different methods to locate ancestors
-anc_tCutoffs = [10000] #time cutoffs for estimating dispersal
-anc_loctCutoffs = [10000] #time cutoffs for locating ancestors (note that we might want to use trees with a smaller tCutoff to estimate dispersal more accurately, then apply this dispersal rate to deeper trees)
+##################
+#### PROGRAMS ####
+##################
 
-# for 2 epoch sims
-SIGMAd1s = [0.25, 0.5] #[0.5,1] #dispersal in most recent epoch
-SIGMAd2s = [0.25, 0.5] #[0.5,1] #dispersal in most distant epoch
-T12s = [100] #gen in past when dispersal rate changes
-epoch_reps = range(10) #number of reps to get mcles
-epoch_mle_reps = range(1) #number of reps to get per locus mles
-epoch_bnds = ((1e-6,None), (1e-6,None), (-0.99,0.99), (1e-6,None), (1e-6,None), (-0.99,0.99), (1e-6,None)) #bounds on parameters being estimated
-epoch_Ks = [4.0] #might have to increase density for small sigmas, since this is how mate choice is determined 
-epoch_Nes = [10000] #make K * W^2
-epoch_tCutoffs = [int(1e3)]#,int(1e4)]
-
-###################
-## PROGRAMS ###
-###################
-
-# -------------------slim ------------------
+# ------------------- slim ------------------
 
 SLiM = PROGRAMDIR + 'SLiM_build/slim' #command to run SLiM
 
@@ -116,17 +103,17 @@ rule get_relate:
     ''' 
 
 #################################
-#### ONE EPOCH DISPERSAL RATES ##
+### ONE EPOCH DISPERSAL RATES ###
 #################################
 
 # ------- SLiM simulations -------
 # <1h w/ 80 threads, 1 each
 
-slim_trees = DATADIR + "slim_{L}L_{RBP}RBP_{LAMBDA}LAMBDA_{K}K_{W}W_{SIGMAcomp}SIGMAcomp_{SIGMAmate}SIGMAmate_{SIGMAdisp}SIGMAdisp_{selfing}selfing_{MAXT}MAXT_{nrep}nrep.trees"
+slim_trees = DATADIR + "sim_{L}L_{RBP}RBP_{LAMBDA}LAMBDA_{K}K_{W}W_{SIGMAcomp}SIGMAcomp_{SIGMAmate}SIGMAmate_{SIGMAdisp}SIGMAdisp_{selfing}selfing_{MAXT}MAXT_{nrep}nrep.trees"
 
-rule slim_sims:
-  input:
-    expand(slim_trees, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps)
+#rule slim_sims:
+#  input:
+#    expand(slim_trees, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps)
 
 rule slim_sim:
   input:
@@ -134,6 +121,8 @@ rule slim_sim:
     "scripts/sim.slim"
   output:
     slim_trees
+  group: "slim_sims"	 
+  threads: 1
   shell:
     """
     module load gcc/8.3.0    
@@ -154,56 +143,62 @@ rule slim_sim:
       {input[1]}
     """
 
-# ------------------ get true tree-sequences (and locations) of sample, and make VCF -----------------
+# ------------------ get true tree-sequences and locations of sample, and make VCF -----------------
 # runs in <2m w/ 80 threads, one each
 
-true_trees = slim_trees.replace('.trees','_{Ne}Ne_{U}U_{k}k_sample{end}')
-ends = [".locs", "_true.trees", ".vcf", ".Ne"]
+true_trees = slim_trees.replace('.trees','_{Ne}Ne_{U}U_{k}k.{end}')
+ends = ["locs", "trees", "vcf", "Ne"]
 
-rule true_trees:
-  input:
-    expand(true_trees, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, end=ends)
+#rule true_trees:
+#  input:
+#    expand(true_trees, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, end=ends)
 
 rule true_tree:
   input:
     slim_trees 
   output:
     expand(true_trees, end=ends, allow_missing=True)
+  group: "true_trees"
+  threads: 1
   run:
     import tskit, pyslim, msprime
     import numpy as np
     ts = tskit.load(input[0]) #load tree sequence
     inds = np.random.choice(range(ts.num_individuals), int(wildcards.k), replace=False) #select k individuals randomly from current generation
-    ind_locs = ts.individual_locations[inds] #locations of all sampled individuals
-    np.savetxt(output[0], ind_locs) #save locations
-    samples = [node for ind in inds for node in ts.individual(ind).nodes]
-    ts = ts.simplify(samples, keep_input_roots=True)
+    samples = [node for ind in inds for node in ts.individual(ind).nodes] #both genomes of each individual
+    ts = ts.simplify(samples, keep_input_roots=True) #need to keep input roots for recapping
     ts = pyslim.recapitate(ts, recombination_rate=float(wildcards.RBP), ancestral_Ne=float(wildcards.Ne)) #recapitate
     ts.dump(output[1]) #save true treesequence
+    locs = [ts.individual(ts.node(i).individual).location[:2] for i in ts.samples()] #locations of all sample nodes
+    np.savetxt(output[0], locs) #save locations
     ts = msprime.sim_mutations(ts, rate=float(wildcards.U)) #layer on mutations
     with open(output[2], "w") as vcf_file:
-      ts.write_vcf(vcf_file, individuals = range(int(wildcards.k)))
+      ts.write_vcf(vcf_file, individuals = range(int(wildcards.k)), individual_names = [str(inds[ts.node(i).individual]) for i in ts.samples()][::2]) #give the sampled individuals their original names, in case we need that later
     twoNe = ts.diversity() / (2 * float(wildcards.U)) #simple estimte of 2Ne
     np.savetxt(output[3], [int(twoNe)])
+
+#TODO: add wildcard to sample 1 or 2 genomes per individual
 
 # ------------------- convert vcf to haps/sample ----------------------
 # seconds with 80 threads, one each
 
-haps_sample = true_trees.replace('{end}','_inferred.{end}')
+haps_sample = true_trees
 ends = ['haps','sample']
 
-rule haps_samples: 
-  input:
-    expand(haps_sample, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, end=ends)
+#rule haps_samples: 
+#  input:
+#    expand(haps_sample, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, end=ends)
 
 rule haps_sample:
   input:
-    expand(true_trees, end=['.vcf'], allow_missing=True),
+    expand(true_trees, end=['vcf'], allow_missing=True),
     RELATE
   output:
    expand(haps_sample, end=ends, allow_missing=True)
   params:
-    prefix = true_trees.replace('{end}','')
+    prefix = true_trees.replace('.{end}','')
+  group: "haps_sample"
+  threads: 1
   shell:
     '''
     module load gcc/8.3.0 #needed for relate
@@ -218,16 +213,18 @@ rule haps_sample:
 # --------------- recombination map ---------
 # instantaneous
 
-slim_map = DATADIR + 'slim_{L}L_{RBP}RBP_{selfing}selfing.map'
+rec_map = DATADIR + 'sim_{L}L_{RBP}RBP_{selfing}selfing.map'
 
-rule slim_maps:
-  input:
-    expand(slim_map, L=Ls, RBP=RBPs, selfing=selfings)
+#rule rec_maps:
+#  input:
+#    expand(rec_map, L=Ls, RBP=RBPs, selfing=selfings)
 
-rule slim_map:
+rule rec_map:
   input:
   output:
-    slim_map
+    rec_map
+  threads: 1
+  group: "rec_maps"
   run:
     import numpy as np
     L = int(wildcards.L)
@@ -243,18 +240,20 @@ rule slim_map:
 anc_mut = haps_sample
 ends = ['anc','mut'] 
 
-rule anc_muts:
-  input:
-    expand(anc_mut, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, end=ends)
+#rule anc_muts:
+#  input:
+#    expand(anc_mut, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, end=ends)
 
 rule anc_mut:
   input:
-    expand(true_trees, end=['.Ne'], allow_missing=True),
+    expand(true_trees, end=['Ne'], allow_missing=True),
     expand(haps_sample, end=['haps','sample'], allow_missing=True),
-    slim_map,
+    rec_map,
     RELATE
   output:
     expand(anc_mut, end=ends, allow_missing=True)
+  threads: 1
+  group: "anc_muts"
   params:
     prefix = anc_mut.replace(DATADIR,'').replace('.{end}',''),
   shell:
@@ -278,14 +277,16 @@ rule anc_mut:
 
 poplabel = DATADIR + 'sim_{k}k.poplabels'
 
-rule poplabels:
-  input:
-    expand(poplabel, k=ks)
+#rule poplabels:
+#  input:
+#    expand(poplabel, k=ks)
 
 rule poplabel:
   input:
   output:
     poplabel
+  threads: 1
+  group: "poplabels"
   shell:
     '''
     echo "sample population group sex" > {output[0]}
@@ -296,12 +297,12 @@ rule poplabel:
 # note that I commented out the last line in Relate's EstimatePopulationSize.sh to avoid loading R to plot 
 # 10m? with 80 threads, 1 each
 
-coal_rate = anc_mut.replace('.{end}','_{numiter}numiter_{threshold}threshold_popsize.{end}')
+coal_rate = anc_mut.replace('.{end}','_{numiter}numiter_{threshold}threshold.{end}')
 ends = ['anc','mut','coal']
 
-rule coal_rates:
-  input:
-    expand(coal_rate, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, numiter=numiters, threshold=thresholds, end=ends)
+#rule coal_rates:
+#  input:
+#    expand(coal_rate, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, numiter=numiters, threshold=thresholds, end=ends)
 
 rule coal_rate:
   input:
@@ -309,6 +310,8 @@ rule coal_rate:
     poplabel
   output:
     expand(coal_rate, end=ends, allow_missing=True)
+  threads: 1
+  group: "coal_rates" 
   params:
     prefix = anc_mut.replace('.{end}',''),
     prefix_out = coal_rate.replace('.{end}','')
@@ -340,6 +343,8 @@ checkpoint bp:
     expand(anc_mut, end=['anc','mut'], allow_missing=True)
   output:
     bps 
+  threads: 1
+  group: "bps"
   run:
     print('getting tree indices')
     ixs_start=[]
@@ -370,7 +375,6 @@ checkpoint bp:
 
 # ------------ sample branch lengths at a particular location -------------
 
-
 tree_samples = coal_rate.replace('.{end}','_{treeskip}treeskip_{locus}locus_{M}M.newick')
 
 rule sample_tree:
@@ -383,6 +387,7 @@ rule sample_tree:
     prefix_in = coal_rate.replace('.{end}',''),
     prefix_out = tree_samples.replace('.newick','')
   threads: 1
+  group: "sample_trees"
   shell:
     '''
     start=( $(awk 'FNR == {wildcards.locus} {{print $1}}' {input[0]}) )
@@ -410,10 +415,20 @@ rule times:
     tree_samples
   output:
     expand(times, end=ends, allow_missing=True)
+  threads: 1
+  group: "times"
   run:
     from tsconvert import from_newick
     from utils import get_shared_times
     import numpy as np
+    import os
+    # tame numpy
+    os.environ["OMP_NUM_THREADS"] = str(threads)
+    os.environ["GOTO_NUM_THREADS"] = str(threads)
+    os.environ["OPENBLAS_NUM_THREADS"] = str(threads)
+    os.environ["MKL_NUM_THREADS"] = str(threads)
+    os.environ["VECLIB_MAXIMUM_THREADS"] = str(threads)
+    os.environ["NUMEXPR_NUM_THREADS"] = str(threads)
     stss = []
     ctss = []
     with open(input[0], mode='r') as f:
@@ -434,7 +449,7 @@ rule times:
 
 # ------------------ process shared times --------------------
 
-processed_shared_times = times.replace('{end}','sts_{tCutoff}tCutoff_{end}')
+processed_shared_times = times.replace('{end}','{tCutoff}tCutoff_{end}')
 ends = ['mc-invs.npy','logdets.npy','samples.npy']
 
 rule process_shared_time:
@@ -442,18 +457,19 @@ rule process_shared_time:
     times.replace('{end}','sts.npy')
   output:
     expand(processed_shared_times, end=ends, allow_missing=True)
-  threads: 1
+  threads: 1 
+  group: "process_times"
   run:
-    import os
-    import numpy as np
-    from utils import chop_shared_times, center_shared_times
     # tame numpy
+    import os
     os.environ["OMP_NUM_THREADS"] = str(threads)
     os.environ["GOTO_NUM_THREADS"] = str(threads)
     os.environ["OPENBLAS_NUM_THREADS"] = str(threads)
     os.environ["MKL_NUM_THREADS"] = str(threads)
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(threads)
     os.environ["NUMEXPR_NUM_THREADS"] = str(threads)
+    import numpy as np
+    from utils import chop_shared_times, center_shared_times
     # load times at all trees
     stss = np.load(input[0])
     _,n,_ = stss.shape
@@ -475,8 +491,8 @@ rule process_shared_time:
       # process subtrees
       for st,sm in zip(sts_chopped, smpls):
         stc = center_shared_times(st) #mean center
-        stc_inv = np.linalg.pinv(stc) #invert
-        stc_logdet = np.linalg.slogdet(st)[1] #log determinant
+        stc_inv = np.linalg.inv(stc) #invert
+        stc_logdet = np.linalg.slogdet(stc)[1] #log determinant
         sts_inv.append(stc_inv)
         sts_logdet.append(stc_logdet) 
         smplss.append(sm) #samples
@@ -490,7 +506,7 @@ rule process_shared_time:
 
 # ------------- process coalescence times ----------
 
-processed_coal_times = times.replace('{end}','cts_{tCutoff}tCutoff_{end}')
+processed_coal_times = times.replace('{end}','{tCutoff}tCutoff_{end}')
 ends = ['bts.npy','lpcs.npy']
 
 rule process_coal_time:
@@ -500,17 +516,18 @@ rule process_coal_time:
   output:
     expand(processed_coal_times, end=ends, allow_missing=True)
   threads: 1 
+  group: "process_times"
   run:
-    import os
-    import numpy as np
-    from spacetrees import _log_coal_density
     # taming numpy
+    import os
     os.environ["OMP_NUM_THREADS"] = str(threads)
     os.environ["GOTO_NUM_THREADS"] = str(threads)
     os.environ["OPENBLAS_NUM_THREADS"] = str(threads)
     os.environ["MKL_NUM_THREADS"] = str(threads)
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(threads)
     os.environ["NUMEXPR_NUM_THREADS"] = str(threads)
+    import numpy as np
+    from spacetrees import _log_coal_density
     # get variable Ne
     epochs = np.genfromtxt(input[1], skip_header=1, skip_footer=1) #time at which each epoch starts (and the final one ends)
     Nes = 0.5/np.genfromtxt(input[1], skip_header=2)[2:] #effective population size during each epoch
@@ -542,11 +559,12 @@ rule process_coal_time:
 
 # ----------- composite dispersal rates ------------------------
 
-composite_dispersal_rate = processed_shared_times.replace('_{locus}locus','').replace('_sts','').replace('{end}','mle-dispersal.npy')
+composite_dispersal_rate = processed_shared_times.replace('_{locus}locus','').replace('{end}','mle-dispersal.npy')
 
 rule composite_dispersal_rates:
   input:
-    expand(composite_dispersal_rate, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=tCutoffs)
+    #expand(composite_dispersal_rate, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, k=ks, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=tCutoffs)
+    expand(composite_dispersal_rate, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=[0.5], selfing=selfings, MAXT=MAXTs, nrep=[0], Ne=Nes, U=Us, k=ks, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=[None])
 
 def input_func(name,ends):
   def input_files(wildcards):
@@ -554,7 +572,7 @@ def input_func(name,ends):
     infile = checkpoints.bp.get(**wildcards).output[0]
     with open(infile,'r') as f:
       for i,_ in enumerate(f):
-        string = name.replace('{locus}',str(i))
+        string = name.replace('{locus}',str(i+1))
         filenames.append(string)
     return expand(filenames, end=ends, **wildcards)
   return input_files
@@ -566,52 +584,59 @@ rule composite_dispersal_rate:
     smplss = input_func(processed_shared_times, ['samples.npy']),
     btss = input_func(processed_coal_times, ['bts.npy']),
     lpcss = input_func(processed_coal_times, ['lpcs.npy']),
-    locs = true_trees.replace('{end}','.locs') 
+    locs = true_trees.replace('{end}','locs') 
   output:
     composite_dispersal_rate
+  threads: 1
+  group: "composite_dispersal_rates"
   run:
-    import os
-    import numpy as np
-    from spacetrees import mle_dispersal, _sds_rho_to_sigma
-    from tqdm import tqdm
     # taming numpy
+    import os
     os.environ["OMP_NUM_THREADS"] = str(threads)
     os.environ["GOTO_NUM_THREADS"] = str(threads)
     os.environ["OPENBLAS_NUM_THREADS"] = str(threads)
     os.environ["MKL_NUM_THREADS"] = str(threads)
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(threads)
     os.environ["NUMEXPR_NUM_THREADS"] = str(threads)
+    import numpy as np
+    from spacetrees import mle_dispersal, _sds_rho_to_sigma
+    from tqdm import tqdm
     # load locations
-    locations = np.load(input.locs)
+    locations = np.loadtxt(input.locs) #sample node locations
+    # for testing
+    L = len(input.stss_mc_inv)
+    M = int(wildcards.M)
+    L = 10 #number of loci
+    M = 10 #number of trees per locus
     #mean centered and inverted shared time matrices
     print('\nloading inverted shared times matrices')
     stss_mc_inv = []
-    for f in tqdm(input.stss_mc_inv):
-      sts_mc_inv = np.load(f, allow_pickle=True)
+    for f in tqdm(input.stss_mc_inv[:L]):
+      sts_mc_inv = np.load(f, allow_pickle=True)[:M]
       stss_mc_inv.append(sts_mc_inv)
     #log determinants of mean centered shared time matrices   
     print('\nloading log determinants of shared times matrices')
     stss_logdet = []
-    for f in tqdm(input.stss_logdet):
-      sts_logdet = np.load(f, allow_pickle=True)
+    for f in tqdm(input.stss_logdet[:L]):
+      sts_logdet = np.load(f, allow_pickle=True)[:M]
       stss_logdet.append(sts_logdet) 
     #subtree samples
     print('\nloading samples of shared times matrices')
     smplss = []
-    for f in tqdm(input.smplss):
-      smpls = np.load(f, allow_pickle=True)
+    for f in tqdm(input.smplss[:L]):
+      smpls = np.load(f, allow_pickle=True)[:M]
       smplss.append(smpls) 
     #branching times
     print('\nloading branching times')
     btss = []
-    for f in tqdm(input.btss):
-      bts = np.load(f, allow_pickle=True) 
+    for f in tqdm(input.btss[:L]):
+      bts = np.load(f, allow_pickle=True)[:M] 
       btss.append(bts)
     #log probability of coalescent times   
     print('\nloading log probability of coalescence times')
     lpcss = []
-    for f in tqdm(input.lpcss):
-      lpcs = np.load(f, allow_pickle=True) 
+    for f in tqdm(input.lpcss[:L]):
+      lpcs = np.load(f, allow_pickle=True)[:M] 
       lpcss.append(lpcs)
     # function for updates
     def callbackF(x):
@@ -619,414 +644,12 @@ rule composite_dispersal_rate:
     # find parameter estimates
     print('\nestimating dispersal rate')
     mle = mle_dispersal(locations=locations, shared_times_inverted=stss_mc_inv, log_det_shared_times=stss_logdet, samples=smplss, 
-                                sigma0=None, phi0=None, #make educated guess based on first tree at each locus
-                                callbackF=callbackF, 
-                                important=True, branching_times=btss, logpcoals=lpcss)
+                        sigma0=None, phi0=None, #make educated guess based on first tree at each locus
+                        callbackF=callbackF,
+                        important=True, branching_times=btss, logpcoals=lpcss)
     print('\n',mle)
     np.save(output[0], mle) 
 
-## ---------------- reorder locations for inferred trees ---------------------------
-#
-#reorder_locations_pattern =  tree_pattern.replace("{sim_output}", '_reordered.locs')
-#
-#reorder_locations_results = expand(reorder_locations_pattern,
-#                                     L=Ls, RBP=RBPs,
-#                                     LAMBDA=LAMBDAs, K=Ks,
-#                                     W=Ws, SIGMAi=SIGMAis,
-#                                     SIGMAd=SIGMAds, MAXT=MAXTs,
-#                                     nrep=nreps, Ne=Nes, U=Us, k=ks)
-#
-#rule all_choose_loci:
-#  input:
-#    loci_results
-#
-#ruleorder: choose_loci > get_true_trees_and_locations
-#
-#rule choose_loci:
-#  input:
-#    expand(tree_pattern, sim_output=tree_outputs[:1], allow_missing=True)
-#  output:
-#    loci_pattern
-#  run:
-#    ts = tskit.load(input[0]) #load tree sequence
-#    which_trees, intervals = sparg.choose_loci(ts, which=which_sites, mode='site') #determine tree indices and genomic intervals of each
-#    np.savez(output[0], which_trees=which_trees, intervals=intervals) #save for downstream
-#
-## --------------------- choose loci to sample from inferred trees  --------------------------------
-#
-#inf_loci_pattern = inf_tree_pattern.replace('{sim_output}','_inferred_%dnloci.npz' %nloci)
-#
-#inf_loci_results = expand(inf_loci_pattern,
-#                          L=Ls, RBP=RBPs,
-#                          LAMBDA=LAMBDAs, K=Ks,
-#                          W=Ws, SIGMAi=SIGMAis,
-#                          SIGMAd=SIGMAds, MAXT=MAXTs,
-#                          nrep=nreps, Ne=Nes, U=Us,
-#                          k=ks,
-#                          num_iter=num_iters)
-#
-#rule all_choose_inf_loci:
-#  input:
-#    inf_loci_results
-#
-#ruleorder: choose_inf_loci > get_true_trees_and_locations
-#
-#rule choose_inf_loci:
-#  input:
-#    expand(inf_tree_pattern, sim_output=inf_tree_outputs[:1], allow_missing=True)
-#  output:
-#    inf_loci_pattern
-#  run:
-#    ts = tskit.load(input[0]) #load tree sequence
-#    which_trees, intervals = sparg.choose_loci(ts, which=which_sites, mode='site') #determine tree indices and genomic intervals of each
-#    np.savez(output[0], which_trees=which_trees, intervals=intervals) #save for downstream
-#
-## ---------------------- process true trees -------------------------------
-#
-#process_trees_pattern = loci_pattern.replace('.npz','_processed_{locus}locus_{tCutoff}tCutoff.npz')
-#
-#process_trees_results = expand(process_trees_pattern,
-#                               L=Ls, RBP=RBPs,
-#                               LAMBDA=LAMBDAs, K=Ks,
-#                               W=Ws, SIGMAi=SIGMAis,
-#                               SIGMAd=SIGMAds, MAXT=MAXTs,
-#                               nrep=nreps, Ne=Nes, U=Us,
-#                               k=ks, 
-#                               locus=loci, tCutoff=tCutoffs)
-#
-#rule all_process_trees:
-#  input:
-#    process_trees_results
-#
-#ruleorder: process_trees > get_true_trees_and_locations
-#
-#rule process_trees:
-#  input:
-#    loci_pattern,
-#    expand(tree_pattern, sim_output=tree_outputs[:1], allow_missing=True)
-#  output:
-#    process_trees_pattern
-#  run:
-#    # load list of trees we are going to sample
-#    npz = np.load(input[0], allow_pickle=True)
-#    which_trees = npz['which_trees']
-#    # and choose one to process
-#    i = int(wildcards.locus)
-#    locus = which_trees[i]
-#    print('tree index:', locus)
-#    # process
-#    ts = tskit.load(input[1])
-#    coal_times, pcoals, shared_times, samples = sparg.process_trees(which_loci=[locus],
-#                                                                    tCutoff=int(wildcards.tCutoff),
-#                                                                    ts = ts)
-#    # save
-#    np.savez(output[0], coal_times=coal_times, pcoals=pcoals, shared_times=shared_times, samples=samples)
-#
-## ---------------------- process inferred trees -------------------------------
-#
-#process_inf_trees_pattern = inf_loci_pattern.replace('.npz','_processed_{locus}locus_{tCutoff}tCutoff_{M}M.npz')
-#sub_pattern = inf_loci_pattern.replace('.npz','_sub_{locus}locus.newick')
-#
-#process_inf_trees_results = expand(process_inf_trees_pattern,
-#                                   L=Ls, RBP=RBPs,
-#                                   LAMBDA=LAMBDAs, K=Ks,
-#                                   W=Ws, SIGMAi=SIGMAis,
-#                                   SIGMAd=SIGMAds, MAXT=MAXTs,
-#                                   nrep=nreps, Ne=Nes, U=Us,
-#                                   k=ks, 
-#                                   num_iter=num_iters,
-#                                   locus=loci, tCutoff=tCutoffs,
-#                                   M = Ms)
-#
-#rule all_process_inf_trees:
-#  input:
-#    process_inf_trees_results
-#
-#ruleorder: process_inf_trees > get_true_trees_and_locations
-#
-#rule process_inf_trees:
-#  input:
-#    inf_loci_pattern,
-#    expand(inf_tree_pattern, sim_output=inf_tree_outputs, allow_missing=True) #don't actually use the tree sequence, just use filename to access anc/mut files
-#  output:
-#    process_inf_trees_pattern
-#  run:
-#    # load list of trees we are going to sample
-#    npz = np.load(input[0], allow_pickle=True)
-#    which_trees = npz['which_trees']
-#    intervals = npz['intervals']
-#    # and choose one to process
-#    i = min(int(wildcards.locus), len(which_trees)-1) #in very rare case we've no tree at the last bp, sample the last tree
-#    locus = which_trees[i]
-#    print('tree index:', locus)
-#    interval = intervals[i]
-#    print('genomic interval:', interval)
-#    # process
-#    filename = input[1].replace('.trees','')    
-#    coal_times, pcoals, shared_times, samples = sparg.process_trees(which_loci=[locus],
-#                                                                    intervals=[interval],
-#                                                                    tCutoff=int(wildcards.tCutoff),
-#                                                                    important=True,
-#                                                                    M=int(wildcards.M),
-#                                                                    PATH_TO_RELATE=RELATE,
-#                                                                    u=float(wildcards.U),
-#                                                                    infile=filename,
-#                                                                    coalfile=filename + '.coal',
-#                                                                    outfile=filename + '_sub')
-#    # save
-#    np.savez(output[0], coal_times=coal_times, pcoals=pcoals, shared_times=shared_times, samples=samples)
-#
-## --------------------- MLEs of dispseral rate from true trees ----------------------
-#
-#mles_pattern = process_trees_pattern.replace('.npz', '_mle_dispersal.npy')
-#
-#mles_results = expand(mles_pattern,
-#                      L=Ls, RBP=RBPs,
-#                      LAMBDA=LAMBDAs, K=Ks,
-#                      W=Ws, SIGMAi=SIGMAis,
-#                      SIGMAd=per_locus_SIGMAds, MAXT=MAXTs,
-#                      nrep=nreps, Ne=Nes, U=Us, k=ks, 
-#                      locus=loci, tCutoff=tCutoffs)
-#
-#rule all_mles:
-#  input:
-#    mles_results
-#
-#ruleorder: mles > get_true_trees_and_locations
-#
-#rule mles:
-#  input:
-#    process_trees_pattern, #processed treees
-#    tree_pattern.replace("{sim_output}", tree_outputs[1]) #locations
-#  output:
-#    mles_pattern
-#  run:
-#    # get processed trees
-#    processed_trees = np.load(input[0], allow_pickle=True)
-#    coal_times = processed_trees['coal_times']
-#    pcoals = processed_trees['pcoals']
-#    shared_times = processed_trees['shared_times']
-#    samples = processed_trees['samples']
-#    # get locations of samples
-#    ind_locs = np.loadtxt(input[1]) #locations of diploid individuals
-#    locations = np.repeat(ind_locs, 2, axis=0)[:,0:2] #chromosome locations in 2D
-#    # get mle dispersal rate
-#    x0 = np.array([float(wildcards.SIGMAd), float(wildcards.SIGMAd), 0, 0.001]) #initial guess for dispersal SDs, correlation, and branching rate
-#    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times, samples, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=False, quiet=False, scale_phi=scale_phi, remove_missing=False, method=method)
-#    if mle.success: 
-#      np.save(output[0], mle)
-#    else:
-#      print('failed!')
-#
-## --------------------- MLEs of dispseral rate from inferred trees ----------------------
-#
-#inf_mles_pattern = process_inf_trees_pattern.replace('.npz', '_mle_dispersal.npy')
-#
-#inf_mles_results = expand(inf_mles_pattern,
-#                          L=Ls, RBP=RBPs,
-#                          LAMBDA=LAMBDAs, K=Ks,
-#                          W=Ws, SIGMAi=SIGMAis,
-#                          SIGMAd=per_locus_SIGMAds, MAXT=MAXTs,
-#                          nrep=nreps, Ne=Nes, U=Us, k=ks, 
-#                          num_iter=num_iters,
-#                          locus=loci, tCutoff=tCutoffs,
-#                          M=Ms)
-#
-#rule all_inf_mles:
-#  input:
-#    inf_mles_results
-#
-#ruleorder: inf_mles > get_true_trees_and_locations
-#
-#rule inf_mles:
-#  input:
-#    process_inf_trees_pattern, #processed treees
-#    reorder_locations_pattern #locations
-#  output:
-#    inf_mles_pattern
-#  run:
-#    # get processed trees
-#    processed_trees = np.load(input[0], allow_pickle=True)
-#    coal_times = processed_trees['coal_times']
-#    pcoals = processed_trees['pcoals']
-#    shared_times = processed_trees['shared_times']
-#    samples = processed_trees['samples']
-#    # get locations of samples
-#    locations = np.loadtxt(input[1])[:,:2] #locations of haploid genomes
-#    # get mle dispersal rate
-#    x0 = np.array([float(wildcards.SIGMAd), float(wildcards.SIGMAd), 0, 0.001]) #initial guess for dispersal SDs, correlation, and branching rate
-#    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times, samples, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=scale_phi, remove_missing=False, method=method)
-#    if not mle.success:
-#      new_scale_phi = scale_phi * 10 #increase scale_phi by order of magnitude
-#      print('search failed with scale_phi=%d, trying scale_phi=%d...' %(scale_phi,new_scale_phi))
-#      #x0 = mle.x #take where we left off
-#      x0[-1] = x0[-1] * new_scale_phi/scale_phi #rescale starting guess for phi
-#      mle = sparg.find_mle(locations, coal_times, pcoals, shared_times, samples, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=new_scale_phi, remove_missing=False, method=method)
-#    if mle.success: 
-#      np.save(output[0], mle)
-#    else:
-#      print('still failed!')
-#
-## ---------------- mcle dispersal from true trees -------------------
-#
-#mcles_pattern = mles_pattern.replace('mle', 'mcle').replace('_{locus}locus','')
-#
-#mcles_results = expand(mcles_pattern,
-#                      L=Ls, RBP=RBPs,
-#                      LAMBDA=LAMBDAs, K=Ks,
-#                      W=Ws, SIGMAi=SIGMAis,
-#                      SIGMAd=SIGMAds, MAXT=MAXTs,
-#                      nrep=nreps, Ne=Nes, U=Us, k=ks, 
-#                      tCutoff=tCutoffs)
-#
-#rule all_mcles:
-#  input:
-#    mcles_results
-#
-#ruleorder: mcles > get_true_trees_and_locations
-#
-#rule mcles:
-#  input:
-#    expand(process_trees_pattern, locus=loci, allow_missing=True), #processed treees
-#    tree_pattern.replace("{sim_output}", tree_outputs[1]) #locations
-#  output:
-#    mcles_pattern
-#  threads: 40
-#  run:
-#    # load processed trees
-#    coal_times = []
-#    pcoals = []
-#    shared_times = []
-#    samples = []
-#   # for chromosome in [wildcards.CHR]: #chromosomes: #running it chromosome by chromosome because takes >24 hours for whole genome
-#    for locus in loci:
-#      #processed_trees = np.load(input[(chromosome-1)*nloci + locus], allow_pickle=True) #find correct input file from expansion
-#      processed_trees = np.load(input[locus], allow_pickle=True) #find correct input file from expansion
-#      coal_times.append(processed_trees['coal_times'][0])
-#      pcoals.append(processed_trees['pcoals'][0])
-#      shared_times.append(processed_trees['shared_times'][0])
-#      samples.append(processed_trees['samples'][0])
-#    # get locations of samples
-#    ind_locs = np.loadtxt(input[-1]) #locations of diploid individuals
-#    locations = np.repeat(ind_locs, 2, axis=0)[:,0:2] #chromosome locations in 2D
-#    # get mle dispersal rate
-#    x0 = np.array([float(wildcards.SIGMAd), float(wildcards.SIGMAd), 0, 0.001]) #initial guess for dispersal SDs, correlation, and branching rate
-#    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times, samples, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=False, quiet=False, scale_phi=scale_phi, remove_missing=False, method=method)
-#    if mle.success: 
-#      np.save(output[0], mle)
-#    else:
-#      print('failed!')
-#
-## ---------------- mcle dispersal from inferred trees -------------------
-#
-#inf_mcles_pattern = inf_mles_pattern.replace('mle', 'mcle').replace('_{locus}locus','')
-#
-#inf_mcles_results = expand(inf_mcles_pattern,
-#                      L=Ls, RBP=RBPs,
-#                      LAMBDA=LAMBDAs, K=Ks,
-#                      W=Ws, SIGMAi=SIGMAis,
-#                      SIGMAd=SIGMAds, MAXT=MAXTs,
-#                      nrep=nreps, Ne=Nes, U=Us, k=ks, 
-#                      num_iter=num_iters, M=Ms,
-#                      tCutoff=tCutoffs)
-#
-#rule all_inf_mcles:
-#  input:
-#    inf_mcles_results
-#
-#ruleorder: inf_mcles > get_true_trees_and_locations
-#
-#rule inf_mcles:
-#  input:
-#    expand(process_inf_trees_pattern, locus=loci, allow_missing=True), #processed treees
-#    reorder_locations_pattern
-#  output:
-#    inf_mcles_pattern
-#  threads: 40
-#  resources:
-#    time = 30
-#  run:
-#    # load processed trees
-#    coal_times = []
-#    pcoals = []
-#    shared_times = []
-#    samples = []
-#   # for chromosome in [wildcards.CHR]: #chromosomes: #running it chromosome by chromosome because takes >24 hours for whole genome
-#    for locus in loci:
-#      #processed_trees = np.load(input[(chromosome-1)*nloci + locus], allow_pickle=True) #find correct input file from expansion
-#      processed_trees = np.load(input[locus], allow_pickle=True) #find correct input file from expansion
-#      coal_times.append(processed_trees['coal_times'][0])
-#      pcoals.append(processed_trees['pcoals'][0])
-#      shared_times.append(processed_trees['shared_times'][0])
-#      samples.append(processed_trees['samples'][0])
-#    # get locations of samples
-#    locations = np.loadtxt(input[-1])[:,:2] #locations of haploid genomes
-#    # get mle dispersal rate
-#    x0 = np.array([float(wildcards.SIGMAd), float(wildcards.SIGMAd), 0, 0.001]) #initial guess for dispersal SDs, correlation, and branching rate
-#    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times, samples, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=scale_phi, remove_missing=False, method=method)
-#    if not mle.success:
-#      new_scale_phi = scale_phi * 10 #increase scale_phi by order of magnitude
-#      print('search failed with scale_phi=%d, trying scale_phi=%d...' %(scale_phi,new_scale_phi))
-#      #x0 = mle.x #take where we left off
-#      x0[-1] = x0[-1] * new_scale_phi/scale_phi #rescale starting guess for phi
-#      mle = sparg.find_mle(locations, coal_times, pcoals, shared_times, samples, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=True, quiet=False, scale_phi=new_scale_phi, remove_missing=False, method=method)
-#    if mle.success: 
-#      np.save(output[0], mle)
-#    else:
-#      print('still failed!')
-#
-## ---------------- mcle dispersal from inferred trees, without importance sampling -------------------
-#
-#inf_mcles_pattern = inf_mles_pattern.replace('mle', 'mcle').replace('_{locus}locus','').replace('.npy', '_unimp.npy')
-#
-#inf_mcles_results = expand(inf_mcles_pattern,
-#                           L=Ls, RBP=RBPs,
-#                           LAMBDA=LAMBDAs, K=Ks,
-#                           W=Ws, SIGMAi=SIGMAis,
-#                           SIGMAd=SIGMAds, MAXT=MAXTs,
-#                           nrep=nreps, Ne=Nes, U=Us, k=ks, 
-#                           num_iter=num_iters, M=Ms,
-#                           tCutoff=tCutoffs)
-#
-#rule all_inf_mcles_unimp:
-#  input:
-#    inf_mcles_results
-#
-#ruleorder: inf_mcles_unimp > get_true_trees_and_locations
-#
-#rule inf_mcles_unimp:
-#  input:
-#    expand(process_inf_trees_pattern, locus=loci, allow_missing=True), #processed treees
-#    reorder_locations_pattern
-#  output:
-#    inf_mcles_pattern
-#  threads: 80
-#  resources:
-#    time = 15 
-#  run:
-#    # load processed trees
-#    coal_times = []
-#    pcoals = []
-#    shared_times = []
-#    samples = []
-#   # for chromosome in [wildcards.CHR]: #chromosomes: #running it chromosome by chromosome because takes >24 hours for whole genome
-#    for locus in loci:
-#      #processed_trees = np.load(input[(chromosome-1)*nloci + locus], allow_pickle=True) #find correct input file from expansion
-#      processed_trees = np.load(input[locus], allow_pickle=True) #find correct input file from expansion
-#      coal_times.append(processed_trees['coal_times'][0][:1]) #hacky way to remove importance sampling -- just take first sample
-#      pcoals.append(processed_trees['pcoals'][0][:1])
-#      shared_times.append(processed_trees['shared_times'][0][:1])
-#      samples.append(processed_trees['samples'][0][:1])
-#    # get locations of samples
-#    locations = np.loadtxt(input[-1])[:,:2] #locations of haploid genomes
-#    # get mle dispersal rate
-#    x0 = np.array([float(wildcards.SIGMAd), float(wildcards.SIGMAd), 0, 0.001]) #initial guess for dispersal SDs, correlation, and branching rate
-#    mle = sparg.find_mle(locations, coal_times, pcoals, shared_times, samples, x0=x0, bnds=bnds, tCutoff=int(wildcards.tCutoff), important=False, quiet=False, scale_phi=scale_phi, remove_missing=False, method=method)
-#    if mle.success: 
-#      np.save(output[0], mle)
-#    else:
-#      print('failed!')
-#
 ######################################################
 ## -------------- ancestor locations -----------------
 ######################################################

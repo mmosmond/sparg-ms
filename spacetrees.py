@@ -131,16 +131,17 @@ def mle_dispersal(locations, shared_times_inverted, samples, log_det_shared_time
     # and potentially find decent initial dispersal rate
     else:
         if not quiet: 
-            if not BLUP: print('and initializing dispersal rate')
-            else: print('and finding best linear unbiased predictor (BLUP) of dispersal rate')
+            #if not BLUP: print('and initializing dispersal rate')
+        #else: 
+            print('and finding best linear unbiased predictor (BLUP) of dispersal rate')
         locsss = []
-        kvsum = np.zeros((d,d))
-        ksum = 0
+        #kvsum = np.zeros((d,d))
+        #ksum = 0
         blup = np.zeros((d,d))
         for stss, smplss in tqdm(zip(shared_times_inverted, samples), total=L): #loci
             locss = []
-            kvisum = np.zeros((d,d))
-            kisum = 0
+            #kvisum = np.zeros((d,d))
+            #kisum = 0
             for sts, smpls in zip(stss, smplss): #trees
                 locs = []
                 kvijsum = np.zeros((d,d))
@@ -153,29 +154,31 @@ def mle_dispersal(locations, shared_times_inverted, samples, log_det_shared_time
                     loc_mc_vec = np.transpose(loc_mc).flatten() #make a vector
                     locs.append(loc_mc_vec)
                     if k>1: #need more than 1 sample in a subtree to estimate dispersal
-                        mle = _mle_dispersal_tree(loc_mc, st)
+                        mle = _mle_dispersal_tree(loc_mc, st.astype('float')) #ensure matrix is float for faster computation and broadcasting below
                         kvijsum += (k-1)*mle #add weighted mle dispersal rate for subtree 
                         kijsum += k-1 #and weight
                 locss.append(locs)
-                if kisum == 0 and not BLUP: #just use first tree at each locus to initialize sigma
-                    kvisum += kvijsum #add weighted mle dispersal rate for tree
-                    kisum += kijsum
-                if BLUP:
-                    blup += kvijsum/kijsum #add mle for this tree
+                #if not BLUP:
+                #if kisum == 0: #just use first tree at each locus to initialize sigma
+                #kvisum += kvijsum #add weighted mle dispersal rate for tree
+                #kisum += kijsum
+                #else:
+                blup += kvijsum/kijsum #add mle for this tree
             locsss.append(locss)
-            if not BLUP:
-                kvsum += kvisum #add weighted mle dispersal rate for locus
-                ksum += kisum
-        if not BLUP:
-            sigma0 = kvsum/ksum #this is the mle dispersal rate over loci and subtrees (using just the first tree at each locus)
-            if not quiet: print('initial dispersal rate:\n',sigma0)
+            #if not BLUP:
+            #kvsum += kvisum #add weighted mle dispersal rate for locus
+            #ksum += kisum
+            
+        #if not BLUP:
+        #sigma0 = kvsum/ksum #this is the mle dispersal rate over loci and subtrees (using just the first tree at each locus)
+        #if not quiet: print('initial dispersal rate:\n',sigma0)
 
+    blup = blup/(L*M) #avg mle over all trees and loci (note that we can avg over all trees and loci simultaneously because same number of trees at every locus)
+    if not quiet: print('BLUP dispersal rate:\n',blup)
+    x0 = _sigma_to_sds_rho(blup) #convert initial dispersal rate to standard deviations and correlation, to feed into numerical search
     if BLUP:
-        blup = blup/(L*M)
-        if not quiet: print('BLUP dispersal rate:\n',blup)
-        return _sigma_to_sds_rho(blup) #best linear unbiased predictor (returned as sds and corr, like numerical search below)
+        return x0 #best linear unbiased predictor (returned as sds and corr, like numerical search below)
     
-    x0 = _sigma_to_sds_rho(sigma0) #convert initial dispersal rate to standard deviations and correlation, to feed into numerical search
 
     # initializing branching rate
     if important:
@@ -395,7 +398,7 @@ def _log_likelihoodratio(locations, shared_times_inverted, log_det_shared_times,
     for locs, sts, ldst in zip(locations, shared_times_inverted, log_det_shared_times): #loop over subtrees
         k = len(sts); n += k + 1 #the plus 1 assumes times are mean centered
         if k>0:
-            LLR += _location_loglikelihood(locs, sts, ldst, sigma_inverted)
+            LLR += _location_loglikelihood(locs, sts.astype('float'), ldst, sigma_inverted)
             ksum += k
     d,_ = sigma_inverted.shape
     if ksum>0: LLR -= ksum/2 * (d*np.log(2*np.pi) + log_det_sigma)  #can factor this out over subtrees
