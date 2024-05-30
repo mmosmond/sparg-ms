@@ -2,6 +2,8 @@
 # snakemake real_ancestor_locations_inf inf_composite_dispersal_rates inf_ancestor_locations --profile slurm --group-components slim_sims=1 true_trees=1 real_ancestor_locations_inf=80 inf_composite_dispersal_rates=80 inf_ancestor_locations=80 -j10 -n
 #snakemake inf_ancestor_locations --profile slurm --group-components sample_trees=80 inf_times=80 coal_rates=80 composite_dispersal_rate=80 inf_ancestor_locations=80 --jobs 100
 
+#snakemake composite_dispersal_rates --rerun-incomplete --profile slurm --group-components haps_samples=80 anc_muts=80 coal_rates=80 bps=80 sample_trees=80 inf_times=80 process_shared_times=80 process_coal_times=80 --jobs 100
+
 # -------------- python modules ---------------
 
 from tqdm import tqdm
@@ -33,7 +35,7 @@ nreps = range(NREPS)
 Nes = [10000] #Ne for recapitation, make roughly W**2 * K
 Us = [1e-8] #per base pair mutation rate
 ds = [100] #[10, 100] #max distance from center of habitat to sample
-ks = [50] #number of individuals to sample
+ks = [25,50] #number of individuals to sample
 Gs = [2] #number of genomes per individual to sample (number of sample nodes is k*G)
 numiters = [5] #number of mcmc iterations to do when inferring coalescence rates (5 is default)
 thresholds = [0.5] #fraction of trees to drop when inferring coalescence relates (0.5 is default)
@@ -932,7 +934,7 @@ rule composite_dispersal_rate:
   threads: 80
   group: "composite_dispersal_rates"
   resources:
-    runtime=30 #24*60
+    runtime=24*60
   run:
     # taming numpy
     import os
@@ -990,16 +992,16 @@ rule composite_dispersal_rate:
 
 rule composite_dispersal_rates:
   input:
-    expand(composite_dispersal_rate, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, d=ds, k=ks, G=Gs, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=tCutoffs, m=ms)
+    expand(composite_dispersal_rate, L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=SIGMAdisps, selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, d=ds, k=ks, G=Gs, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=tCutoffs, m=[1000])
 
 # 50% took <6h, all but one <12h
 #m=1 takes <5m
 #m=10 takes <15m
-#m=100 takes <30m
+#m=100 takes <60m
 
 # ----------- ancestor locations ------------------------
 
-inf_ancestor_location = processed_shared_times.replace('{end}','_ancestor-locations_{sample}sample.npy')
+inf_ancestor_location = processed_shared_times.replace('{end}','_{m}m_ancestor-locations_{sample}sample.npy')
 
 rule inf_ancestor_location:
   input:
@@ -1017,7 +1019,7 @@ rule inf_ancestor_location:
     mle = rules.composite_dispersal_rate.output[0]
   output:
     inf_ancestor_location
-  threads: 40
+  threads: 80
   group: "inf_ancestor_locations"
   resources:
     runtime=2*60
@@ -1056,20 +1058,21 @@ rule inf_ancestor_location:
       ancestor_times = retain_gens
     # structure data by locus, tree, subtree
     M = int(wildcards.M)
+    m  = int(wildcards.m) #use the first m trees at each locus
     if wildcards.tCutoff == 'None':
       LM,_,n,n = stsss.shape
       L = int(LM/M)
-      stsss = stsss.reshape(L,M,1,n,n)
-      smplsss = smplsss.reshape(L,M,1,n)
-      btsss = btsss.reshape(L,M,n-1) 
-      lpcsss = lpcsss.reshape(L,M) 
+      stsss = stsss.reshape(L,M,1,n,n)[:,:m]
+      smplsss = smplsss.reshape(L,M,1,n)[:,:m]
+      btsss = btsss.reshape(L,M,n-1)[:,:m]
+      lpcsss = lpcsss.reshape(L,M)[:,:m] 
     else:
       LM = stsss.shape[0]
       L = int(LM/M)
-      stsss = stsss.reshape(L,M)
-      smplsss = smplsss.reshape(L,M)
-      btsxs = btsss.reshape(L,M) 
-      lpcsxs = lpcsss.reshape(L,M) 
+      stsss = stsss.reshape(L,M)[:,:m]
+      smplsss = smplsss.reshape(L,M)[:,:m]
+      btsss = btsss.reshape(L,M)[:,:m] 
+      lpcsss = lpcsss.reshape(L,M)[:,:m] 
     # locate at each locus
     with NpyAppendArray(output[0], delete_if_exists=True) as anc_locss:
       for stss, smplss, btss, lpcss in tqdm(zip(stsss,smplsss,btsss,lpcsss), total=L): 
@@ -1082,7 +1085,7 @@ rule inf_ancestor_location:
 
 rule inf_ancestor_locations:
   input:
-    expand(inf_ancestor_location,  L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=[0.75], selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, d=ds, k=ks, G=Gs, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=[None], sample=range(10))
+    expand(inf_ancestor_location,  L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=[0.75], selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, d=ds, k=ks, G=Gs, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=[None], sample=range(10), m=[1000])
 
 #dummy = inf_ancestor_location.replace('_{locus}locus','').replace('.npy','_dummy.txt')
 #
@@ -1105,7 +1108,7 @@ rule inf_ancestor_locations:
 
 # ----------- blup ancestor locations ------------------------
 
-blup_inf_ancestor_location = processed_shared_times.replace('{end}','_ancestor-locations_{sample}sample{end}')
+blup_inf_ancestor_location = processed_shared_times.replace('{end}','_{m}m_ancestor-locations_{sample}sample{end}')
 ends = ['_blup.npy','_blup-var.npy']
 
 rule blup_inf_ancestor_location:
@@ -1162,20 +1165,21 @@ rule blup_inf_ancestor_location:
       ancestor_times = retain_gens
     # structure data by locus, tree, subtree
     M = int(wildcards.M)
+    m  = int(wildcards.m) #use the first m trees at each locus
     if wildcards.tCutoff == 'None':
       LM,_,n,n = stsss.shape
       L = int(LM/M)
-      stsss = stsss.reshape(L,M,1,n,n)
-      smplsss = smplsss.reshape(L,M,1,n)
-      btsss = btsss.reshape(L,M,n-1) 
-      lpcsss = lpcsss.reshape(L,M) 
+      stsss = stsss.reshape(L,M,1,n,n)[:,:m]
+      smplsss = smplsss.reshape(L,M,1,n)[:,:m]
+      btsss = btsss.reshape(L,M,n-1)[:,:m]
+      lpcsss = lpcsss.reshape(L,M)[:,:m] 
     else:
       LM = stsss.shape[0]
       L = int(LM/M)
-      stsss = stsss.reshape(L,M)
-      smplsss = smplsss.reshape(L,M)
-      btsxs = btsss.reshape(L,M) 
-      lpcsxs = lpcsss.reshape(L,M) 
+      stsss = stsss.reshape(L,M)[:,:m]
+      smplsss = smplsss.reshape(L,M)[:,:m]
+      btsss = btsss.reshape(L,M)[:,:m] 
+      lpcsss = lpcsss.reshape(L,M)[:,:m] 
     # locate at each locus
     anc_locss = []
     anc_varss = []
@@ -1193,7 +1197,7 @@ rule blup_inf_ancestor_location:
 
 rule blup_inf_ancestor_locations:
   input:
-    expand(blup_inf_ancestor_location,  L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=[0.5], selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, d=ds, k=ks, G=Gs, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=[None], sample=range(100), end=ends)
+    expand(blup_inf_ancestor_location,  L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=[0.75], selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, d=ds, k=ks, G=Gs, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=[None], sample=range(10), end=ends, m=[1000])
 
 # ------------------- real ancestor locations --------------------
 
