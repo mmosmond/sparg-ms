@@ -35,13 +35,15 @@ nreps = range(NREPS)
 Nes = [10000] #Ne for recapitation, make roughly W**2 * K
 Us = [1e-8] #per base pair mutation rate
 ds = [100] #[10, 100] #max distance from center of habitat to sample
-ks = [25,50] #number of individuals to sample
+ks = [25,50,100]
+ks = [100]#[25,50,100]#,100] #number of diploid individuals to sample
 Gs = [2] #number of genomes per individual to sample (number of sample nodes is k*G)
 numiters = [5] #number of mcmc iterations to do when inferring coalescence rates (5 is default)
 thresholds = [0.5] #fraction of trees to drop when inferring coalescence relates (0.5 is default)
 treeskips = [100] #use every TREESKIPth tree for inference
 Ms = [1000] #number of samples of branch lengths at each tree for importance sampling
 tCutoffs = [100,1000,None] #[100] #,None] #when to chop subtrees
+tCutoffs = [None]
 ms = [1,10,100] #number of trees to use at each locus
 
 # ------------- snakemake constraints -----------
@@ -383,6 +385,7 @@ rule true_ancestor_location:
     all_anc_locs = []
     all_anc_vars = []
     ancestor_samples = range(int(wildcards.k)*int(wildcards.G))
+    ancestor_samples = range(10) #just the first 10 for speed
     L = len(smplss)
     for sts, smpls in tqdm(zip(stss_chopped, smplss), total=L):
         anc_locs, anc_vars = locate_ancestors(ancestor_samples=ancestor_samples, ancestor_times=retain_gens, 
@@ -579,7 +582,7 @@ rule coal_rate:
   threads: 1
   group: "coal_rates" 
   resources:
-    runtime=60
+    runtime=180
   params:
     prefix = anc_mut.replace('{end}',''),
     prefix_out = coal_rate.replace('{end}','')
@@ -658,7 +661,7 @@ rule bps:
 
 # ------------ sample branch lengths at a particular location -------------
 
-tree_samples = coal_rate.replace('{end}','_{treeskip}treeskip_{locus}locus_{M}M.newick')
+#tree_samples = coal_rate.replace('{end}','_{treeskip}treeskip_{locus}locus_{M}M.newick')
 tree_samples = coal_rate.replace('{end}','_{treeskip}treeskip_{M}M.newick')
 
 rule sample_tree:
@@ -673,7 +676,7 @@ rule sample_tree:
   threads: 1
   group: "sample_trees"
   resources:
-    runtime=60
+    runtime=180
   shell:
     '''
     module load gcc/11.3.0 #for relate
@@ -709,7 +712,7 @@ rule inf_time:
   threads: 1
   group: "inf_times"
   resources:
-    runtime=120
+    runtime=360
   run:
     # tame numpy
     import os
@@ -753,7 +756,7 @@ rule process_shared_time:
   threads: 80
   group: "shared_times"
   resources:
-    runtime=60
+    runtime=120
   run:
     # tame numpy
     import os
@@ -934,7 +937,7 @@ rule composite_dispersal_rate:
   threads: 80
   group: "composite_dispersal_rates"
   resources:
-    runtime=24*60
+    runtime=12*60
   run:
     # taming numpy
     import os
@@ -1019,10 +1022,10 @@ rule inf_ancestor_location:
     mle = rules.composite_dispersal_rate.output[0]
   output:
     inf_ancestor_location
-  threads: 80
+  threads: 80 #silly that i load all loci at once
   group: "inf_ancestor_locations"
   resources:
-    runtime=2*60
+    runtime=30 #120 for 1000M
   run:
     # taming numpy
     import os
@@ -1085,7 +1088,7 @@ rule inf_ancestor_location:
 
 rule inf_ancestor_locations:
   input:
-    expand(inf_ancestor_location,  L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=[0.75], selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, d=ds, k=ks, G=Gs, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=[None], sample=range(10), m=[1000])
+    expand(inf_ancestor_location,  L=Ls, RBP=RBPs, LAMBDA=LAMBDAs, K=Ks, W=Ws, SIGMAcomp=SIGMAcomps, SIGMAmate=SIGMAmates, SIGMAdisp=[0.75], selfing=selfings, MAXT=MAXTs, nrep=nreps, Ne=Nes, U=Us, d=ds, k=ks, G=Gs, numiter=numiters, threshold=thresholds, treeskip=treeskips, M=Ms, tCutoff=[None], sample=range(10), m=ms)
 
 #dummy = inf_ancestor_location.replace('_{locus}locus','').replace('.npy','_dummy.txt')
 #
