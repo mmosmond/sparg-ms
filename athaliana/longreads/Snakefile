@@ -832,7 +832,7 @@ rule polarize_hap:
                 if n[i] > max_n:
                   max_n = n[i]
                   major = i              
-              major = nucs[major] #most numerous allele 
+              major = nucs[major] #most numerous allele #WARNING WARNING WARNING - this is a BUG - move this below the following for loop to assign minor allele correctly
               min_n = -1
               for i in range(4):
                 if n[i] > min_n and i != major:
